@@ -1,1 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飛飛 (FeiFei) - 寵物醫療健康紀錄健康管理系統</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        header {
+            background-color: #2c3e50;
+            color: #ffffff;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .pet-info-grid {
+            display: block;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 12px;
+            margin-top: 12px;
+        }
+        .info-item {
+            display: inline-block;
+            margin-right: 30px;
+            font-size: 14px;
+        }
+        .info-item strong {
+            color: #1abc9c;
+        }
+        .card {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 5px solid #34495e;
+        }
+        .card.cbc { border-left-color: #3498db; }
+        .card.biochem { border-left-color: #e67e22; }
+        
+        .card-header {
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eaeded;
+            padding-bottom: 10px;
+        }
+        .card-header h2 {
+            font-size: 18px;
+            color: #2c3e50;
+            display: inline-block;
+        }
+        .card-header .date-badge {
+            float: right;
+            background-color: #ecf0f1;
+            color: #7f8c8d;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f8fafc;
+        }
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.low {
+            background-color: #eae6ff;
+            color: #4f46e5;
+        }
+        .status.high {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+        .status.normal {
+            background-color: #dcfee2;
+            color: #16a34a;
+        }
+        .notes {
+            margin-top: 15px;
+            background-color: #fdfefe;
+            border: 1px dashed #bdc3c7;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #555;
+        }
+        .handwritten {
+            color: #2980b9;
+            font-style: italic;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 12px;
+            color: #95a5a6;
+            padding-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🐾 飛飛 (FeiFei) 健康紀錄看板</h1>
+        <div class="pet-info-grid">
+            <div class="info-item">物種/品種：<strong>犬 / 柴犬 (Shiba Inu)</strong></div>
+            <div class="info-item">性別：<strong>母 / 已結紮</strong></div>
+            <div class="info-item">年齡：<strong>13 歲</strong></div>
+            <div class="info-item">體重：<strong>7.40 公斤</strong></div>
+            <div class="info-item">飼主：<strong>劉 欽源 (037165)</strong></div>
+        </div>
+    </header>
+
+    <div class="card cbc">
+        <div class="card-header">
+            <h2>🩸 全血球計數 (ProCyte One)</h2>
+            <span class="date-badge">檢驗時間：2025/09/27 19:47</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>檢驗項目</th>
+                    <th>英文縮寫</th>
+                    <th>檢驗結果</th>
+                    <th>參考區間</th>
+                    <th>狀態標記</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>紅血球</td>
+                    <td>RBC</td>
+                    <td>6.71 M/μL</td>
+                    <td>5.65 - 8.87</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>血球容積比</td>
+                    <td>HCT</td>
+                    <td>31.4 %</td>
+                    <td>37.3 - 61.7</td>
+                    <td><span class="status low">低 (Low)</span></td>
+                </tr>
+                <tr>
+                    <td>血紅素</td>
+                    <td>HGB</td>
+                    <td>11.5 g/dL</td>
+                    <td>13.1 - 20.5</td>
+                    <td><span class="status low">低 (Low)</span></td>
+                </tr>
+                <tr>
+                    <td>平均紅血球體積</td>
+                    <td>MCV</td>
+                    <td>46.8 fL</td>
+                    <td>61.6 - 73.5</td>
+                    <td><span class="status low">低 (Low)</span></td>
+                </tr>
+                <tr>
+                    <td>平均紅血球血紅素量</td>
+                    <td>MCH</td>
+                    <td>17.1 pg</td>
+                    <td>21.2 - 25.9</td>
+                    <td><span class="status low">低 (Low)</span></td>
+                </tr>
+                <tr>
+                    <td>平均紅血球血紅素濃度</td>
+                    <td>MCHC</td>
+                    <td>36.6 g/dL</td>
+                    <td>32.0 - 37.9</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>紅血球分布寬度</td>
+                    <td>RDW</td>
+                    <td>25.4 %</td>
+                    <td>13.6 - 21.7</td>
+                    <td><span class="status high">高 (High)</span></td>
+                </tr>
+                <tr>
+                    <td>網織球百分比</td>
+                    <td>% RETIC</td>
+                    <td>0.2 %</td>
+                    <td>--</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>網織球絕對值</td>
+                    <td>RETIC</td>
+                    <td>13.3 K/μL</td>
+                    <td>10.0 - 110.0</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>白血球</td>
+                    <td>WBC</td>
+                    <td>4.82 K/μL</td>
+                    <td>5.05 - 16.76</td>
+                    <td><span class="status low">低 (Low)</span></td>
+                </tr>
+                <tr>
+                    <td>淋巴球絕對值</td>
+                    <td>LYM</td>
+                    <td>0.82 K/μL</td>
+                    <td>1.05 - 5.10</td>
+                    <td><span class="status low">低 (Low)</span></td>
+                </tr>
+                <tr>
+                    <td>嗜中性球絕對值</td>
+                    <td>NEU</td>
+                    <td>3.35 K/μL</td>
+                    <td>2.95 - 11.64</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>單核球絕對值</td>
+                    <td>MONO</td>
+                    <td>0.40 K/μL</td>
+                    <td>0.16 - 1.12</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>嗜酸性球絕對值</td>
+                    <td>EOS</td>
+                    <td>0.24 K/μL</td>
+                    <td>0.06 - 1.23</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>嗜鹼性球絕對值</td>
+                    <td>BASO</td>
+                    <td>0.01 K/μL</td>
+                    <td>0.00 - 0.10</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>血小板</td>
+                    <td>PLT</td>
+                    <td>280 K/μL</td>
+                    <td>148 - 484</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="notes">
+            <strong>💡 臨床觀察備註：</strong> HCT, HGB, MCV, MCH 偏低，伴隨 RDW 偏高，可能提示小細胞性貧血或相關紅血球生成異常；白血球與淋巴球計數稍微偏低，需持續追蹤免疫與身體整體發炎狀態。
+        </div>
+    </div>
+
+    <div class="card biochem">
+        <div class="card-header">
+            <h2>🧪 臨床生物化學檢驗 (FUJI 500)</h2>
+            <span class="date-badge">檢驗時間：2025/11/21 20:51</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>項目(英)</th>
+                    <th>項目(中)</th>
+                    <th>報告結果</th>
+                    <th>手寫/最新修正</th>
+                    <th>單位</th>
+                    <th>參考範圍</th>
+                    <th>狀態標記</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Na</td>
+                    <td>鈉</td>
+                    <td>145</td>
+                    <td class="handwritten">143</td>
+                    <td>mEq/L</td>
+                    <td>141 ~ 152</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>K</td>
+                    <td>鉀</td>
+                    <td>5.0</td>
+                    <td class="handwritten">4.3</td>
+                    <td>mEq/L</td>
+                    <td>3.8 ~ 5</td>
+                    <td><span class="status normal">正常 (邊緣)</span></td>
+                </tr>
+                <tr>
+                    <td>Cl</td>
+                    <td>氯</td>
+                    <td>115</td>
+                    <td class="handwritten">110</td>
+                    <td>mEq/L</td>
+                    <td>102 ~ 117</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>CRE</td>
+                    <td>肌酸酐</td>
+                    <td>2.37</td>
+                    <td class="handwritten">2.36</td>
+                    <td>mg/dL</td>
+                    <td>0.4 ~ 1.4</td>
+                    <td><span class="status high">高 (High)</span></td>
+                </tr>
+                <tr>
+                    <td>IP</td>
+                    <td>磷離子</td>
+                    <td>3.5</td>
+                    <td class="handwritten">3.6</td>
+                    <td>mg/dL</td>
+                    <td>1.9 ~ 5</td>
+                    <td><span class="status normal">正常 (圈選)</span></td>
+                </tr>
+                <tr>
+                    <td>BUN</td>
+                    <td>血尿素氮</td>
+                    <td>19.8</td>
+                    <td class="handwritten">19.8</td>
+                    <td>mg/dL</td>
+                    <td>9.2 ~ 29.2</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>ALP</td>
+                    <td>鹼性磷酸酶</td>
+                    <td>520</td>
+                    <td class="handwritten">589</td>
+                    <td>U/L</td>
+                    <td>47 ~ 254</td>
+                    <td><span class="status high">高 (High)</span></td>
+                </tr>
+                <tr>
+                    <td>GPT</td>
+                    <td>丙氨酸轉氨酶</td>
+                    <td>45</td>
+                    <td class="handwritten">--</td>
+                    <td>U/L</td>
+                    <td>17 ~ 78</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>GLU</td>
+                    <td>血糖</td>
+                    <td>112</td>
+                    <td class="handwritten">--</td>
+                    <td>mg/dL</td>
+                    <td>75 ~ 128</td>
+                    <td><span class="status normal">正常</span></td>
+                </tr>
+                <tr>
+                    <td>ALB</td>
+                    <td>白蛋白</td>
+                    <td>2.4</td>
+                    <td class="handwritten">2.9</td>
+                    <td>g/dL</td>
+                    <td>2.6 ~ 4</td>
+                    <td><span class="status low">低 (手寫修正至正常)</span></td>
+                </tr>
+                <tr>
+                    <td>BUN/CRE</td>
+                    <td>比值</td>
+                    <td>8.4</td>
+                    <td class="handwritten">--</td>
+                    <td>mg/mg</td>
+                    <td>~</td>
+                    <td>--</td>
+                </tr>
+                <tr>
+                    <td>Na/K</td>
+                    <td>比值</td>
+                    <td>29.0</td>
+                    <td class="handwritten">--</td>
+                    <td>--</td>
+                    <td>~</td>
+                    <td>--</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="notes">
+            <strong>💡 臨床觀察備註：</strong> 
+            1. <strong>CRE (肌酸酐) 2.37 / 2.36</strong> 明顯高於標準範圍，提示高齡犬需特別注意腎功能與慢性腎臟病 (CKD) 的分級與追蹤。<br>
+            2. <strong>ALP (鹼性磷酸酶) 520 / 589</strong> 異常升高，建議向獸醫師諮詢是否需要評估肝膽系統、內分泌問題（如庫興氏症）或進行進一步超音波檢查。
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    <p>築心動物醫院 檢驗紀錄管理網頁 • 本資料僅供個人寵物健康管理與主治醫師評估參考</p>
+</div>
+
+</body>
+</html>
 
