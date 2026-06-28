@@ -720,6 +720,8 @@ function renderOverview(pet){
   function updateDailySection() {
     dailyGrid.innerHTML = '';
     const activeTabObj = tabs.find(t => t.id === currentTab);
+    
+    // 【修正點 1】加入安全防錯，若 Firebase 資料尚未載入完成則預設為空陣列
     const dLogs = dailyLogsByPet[pet.id] || [];
 
     const formCard = el('div', 'daily-form-card');
@@ -734,23 +736,36 @@ function renderOverview(pet){
       <h3>新增 ${activeTabObj.label}</h3>
       <div class="field"><label>日期</label><input type="date" class="d-date-input" value="${new Date().toISOString().slice(0,10)}"></div>
       ${inputFieldHtml}
-      <button class="btn btn-primary" style="padding:8px; margin-top:5px; width:100%;">儲存單項紀錄</button>
+      <button type="button" class="btn btn-primary btn-save-daily" style="padding:8px; margin-top:5px; width:100%;">儲存單項紀錄</button>
     `;
 
-    // 更安全的按鈕抓取與事件綁定方式（避免 ID 衝突）
-    const saveBtn = formCard.querySelector('button');
-    saveBtn.addEventListener('click', async () => {
+    // 【修正點 2】修正按鈕選取器，確保綁定準確
+    const saveBtn = formCard.querySelector('.btn-save-daily');
+    saveBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
       const dateVal = formCard.querySelector('.d-date-input').value;
       const valText = formCard.querySelector('.d-value-input').value.trim();
 
       if (!dateVal) { toast("請選擇日期"); return; }
       if (!valText) { toast("請輸入內容"); return; }
 
-      const logData = { date: dateVal, water: "", food: "", weight: "", breath: "", notes: "" };
-      logData[currentTab] = valText;
+      // 【修正點 3】明確封裝寫入資料庫的物件欄位，避免 undefined 或背後報錯
+      const logData = { 
+        date: dateVal, 
+        water: currentTab === 'water' ? valText : "", 
+        food: currentTab === 'food' ? valText : "", 
+        weight: currentTab === 'weight' ? valText : "", 
+        breath: currentTab === 'breath' ? valText : "", 
+        notes: currentTab === 'notes' ? valText : "" 
+      };
 
-      await createDailyLog(pet.id, logData);
-      formCard.querySelector('.d-value-input').value = "";
+      try {
+        await createDailyLog(pet.id, logData);
+        formCard.querySelector('.d-value-input').value = "";
+      } catch (err) {
+        console.error("儲存失敗:", err);
+        toast("儲存失敗，請檢查權限設定");
+      }
     });
 
     // 建立歷史日誌清單
@@ -775,7 +790,7 @@ function renderOverview(pet){
             <span class="d-date">${log.date}</span>
             <div class="d-vals">${displayVal}</div>
           </div>
-          <button class="icon-btn delLogBtn" style="font-size:12px; margin-left:6px; color:var(--ink-soft);">✕</button>
+          <button type="button" class="icon-btn delLogBtn" style="font-size:12px; margin-left:6px; color:var(--ink-soft);">✕</button>
         `;
         row.querySelector('.delLogBtn').addEventListener('click', () => {
           if (confirm("確定要刪除這條紀錄嗎？")) deleteDailyLog(log.id);
