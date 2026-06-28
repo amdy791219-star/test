@@ -685,7 +685,7 @@ function renderOverview(pet){
   top.appendChild(actions);
   main.appendChild(top);
 
-  // 🌟 [新功能區一]：日常生理與健康狀態登記欄位 (已修改為分開切換選單)
+  // 🌟 日常生理與健康狀態登記欄位
   main.appendChild(el('div', 'section-title', '📝 每日健康生活紀錄'));
 
   // 1. 建立功能切換選單 (Dropdown Tabs)
@@ -728,22 +728,26 @@ function renderOverview(pet){
     const formCard = el('div', 'daily-form-card');
     let inputHtml = '';
     if (activeTabObj.id === 'notes') {
-      inputHtml = `<div class="field"><label>${activeTabObj.label}</label><textarea id="dValue" placeholder="${activeTabObj.placeholder}"></textarea></div>`;
+      inputHtml = `<div class="field"><label>${activeTabObj.label}</label><textarea id="dValueInput" placeholder="${activeTabObj.placeholder}"></textarea></div>`;
     } else {
-      inputHtml = `<div class="field"><label>${activeTabObj.label} (${activeTabObj.unit})</label><input type="number" step="0.01" id="dValue" placeholder="${activeTabObj.placeholder}"></div>`;
+      inputHtml = `<div class="field"><label>${activeTabObj.label} (${activeTabObj.unit})</label><input type="number" step="0.01" id="dValueInput" placeholder="${activeTabObj.placeholder}"></div>`;
     }
 
     formCard.innerHTML = `
       <h3>新增 ${activeTabObj.label}</h3>
-      <div class="field"><label>日期</label><input type="date" id="dDate" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>日期</label><input type="date" id="dDateInput" value="${new Date().toISOString().slice(0,10)}"></div>
       ${inputHtml}
       <button class="btn btn-primary" id="saveDailyBtn" style="padding:8px; margin-top:5px;">儲存單項紀錄</button>
     `;
 
-    // 儲存事件
+    // 點擊儲存按鈕事件
     formCard.querySelector('#saveDailyBtn').addEventListener('click', async () => {
-      const date = formCard.querySelector('#dDate').value;
-      const val = formCard.querySelector('#dValue').value.trim();
+      const dateEl = formCard.querySelector('#dDateInput');
+      const valEl = formCard.querySelector('#dValueInput');
+      
+      const date = dateEl ? dateEl.value : '';
+      const val = valEl ? valEl.value.trim() : '';
+
       if (!date) { toast("請選擇日期"); return; }
       if (!val) { toast("請輸入內容"); return; }
 
@@ -752,7 +756,7 @@ function renderOverview(pet){
       logData[currentTab] = val;
 
       await createDailyLog(pet.id, logData);
-      formCard.querySelector('#dValue').value = "";
+      if(valEl) valEl.value = "";
     });
 
     // B. 建立右側對應的歷史清單
@@ -799,7 +803,7 @@ function renderOverview(pet){
     updateDailySection();
   });
 
-  // 🌟 [原本功能區]：專業醫療回診歷史紀錄
+  // 🌟 專業醫療回診歷史紀錄
   main.appendChild(el('div', 'section-title', '🏥 醫院回診與臨床檢驗紀錄'));
   const visits = visitsByPet[pet.id] || [];
   if(!visits.length){
@@ -940,7 +944,7 @@ function renderTrends(pet){
   const main = document.getElementById('main');
   main.appendChild(crumb(pet.name, ()=>{activeView='overview'; renderMain();}));
   const top = el('div','topbar');
-  top.appendChild(el('h1','','數據趨勢追踪'));
+  top.appendChild(el('h1','','數據趨勢追蹤'));
   main.appendChild(top);
 
   const vSorted = (visitsByPet[pet.id]||[]).slice().sort((a,b)=> new Date(a.date)-new Date(b.date));
