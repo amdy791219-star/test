@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <style>
   :root{
     --paper:#FAF7F0;
@@ -979,7 +980,7 @@ function renderTrends(pet){
   chartWrap.appendChild(canvas);
   main.appendChild(chartWrap);
 
-  function draw(itemName){
+   function draw(itemName){
     const points = [];
     let refLow=null, refHigh=null;
     
@@ -992,7 +993,8 @@ function renderTrends(pet){
       };
       const key = fieldMap[itemName];
       dSorted.forEach(log => {
-        if(log[key] !== "" && log[key] != null && !isNaN(log[key])) {
+        // 🌟 確保數值存在、非空字串且轉換為數字後不是 NaN
+        if(log[key] !== "" && log[key] != null && !isNaN(parseFloat(log[key]))) {
           points.push({x: log.date, y: parseFloat(log[key])});
         }
       });
@@ -1000,7 +1002,7 @@ function renderTrends(pet){
       const pureName = itemName.replace("🩸 臨床: ", "");
       vSorted.forEach(v=>{
         (v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{
-          if(it.name===pureName && it.value!=="" && it.value!=null && !isNaN(it.value)){
+          if(it.name===pureName && it.value!=="" && it.value!=null && !isNaN(parseFloat(it.value))){
             points.push({x: v.date, y: parseFloat(it.value)});
             if(it.refLow!=null && it.refLow!=="") refLow = parseFloat(it.refLow);
             if(it.refHigh!=null && it.refHigh!=="") refHigh = parseFloat(it.refHigh);
@@ -1015,6 +1017,9 @@ function renderTrends(pet){
       toast("目前該項目尚無足夠的數值產生圖表。");
       return;
     }
+
+    // 🌟 確保資料點依照時間先後順序排序，連線才不會錯亂
+    points.sort((a, b) => new Date(a.x) - new Date(b.x));
 
     const pointColors = points.map(p=>{
       if(refLow!=null && p.y<refLow) return '#3D6FC1';
@@ -1052,17 +1057,21 @@ function renderTrends(pet){
         responsive:true,
         plugins:{ legend:{ labels:{ filter:(item)=> !item.text.includes('範圍') } } },
         scales:{
-          x:{ type:'time', time:{unit:'month'}, title:{display:false} },
+          x:{ 
+            type:'time', 
+            time:{
+              parser: 'yyyy-MM-dd',
+              unit:'day', // 🌟 改為以「天」為基本單位，看短期日常紀錄更清晰
+              displayFormats: { day: 'MM/dd' }
+            }, 
+            title:{display:false} 
+          },
           y:{ title:{display:false} }
         }
       }
     });
   }
   
-  draw(select.value);
-  select.addEventListener('change', ()=> draw(select.value));
-}
-
 /* ============================================================
    LIGHTBOX
    ============================================================ */
