@@ -990,7 +990,7 @@ function renderTrends(pet){
     const points = [];
     let refLow=null, refHigh=null;
     
-    if(itemName.startsWith("📦 日常: ")) {
+    if(itemName.includes("日常: ")) {
       const fieldMap = {
         "💧 日常: 每日飲水量 (ml)": "water",
         "🍖 日常: 每日飼料量 (g)": "food",
@@ -1149,6 +1149,9 @@ function openPetModal(pet){
 /* ============================================================
    MODAL: 新增/編輯回診紀錄
    ============================================================ */
+/* ============================================================
+   MODAL: 新增/編輯回診紀錄 (加入 OCR 智慧文字解析功能)
+   ============================================================ */
 function openVisitModal(pet, visit){
   const overlay = el('div','overlay');
   const modal = el('div','modal');
@@ -1160,7 +1163,16 @@ function openVisitModal(pet, visit){
       <div class="field"><label>醫師</label><input id="mVet" value="${visit?.vetName||''}"></div>
     </div>
     <div class="field"><label>備註</label><textarea id="mNotes">${visit?.notes||''}</textarea></div>
-    <h3 style="font-size:15px;margin:18px 0 6px;">檢驗項目</h3>
+    
+    <div style="background: var(--teal-pale); border: 1px solid var(--teal); border-radius: 8px; padding: 14px; margin: 14px 0;">
+      <h3 style="font-size:14px; margin:0 0 6px 0; color: var(--teal-dark);">✨ 智慧文字匯入 (Google 智慧鏡頭貼上區)</h3>
+      <div class="field" style="margin-bottom:8px;">
+        <textarea id="mOcrInput" placeholder="請將 Google 智慧鏡頭複製的文字直接貼在此處，例如：&#10;紅血球 7.25 M/μL&#10;血球容積比(HCT) 32.8%" style="min-height:80px; background:#fff; font-size:13px;"></textarea>
+      </div>
+      <button type="button" class="btn btn-primary" id="btnParseOcr" style="width:auto; font-size:12px; padding:6px 12px; background:var(--teal);">立即解析並自動填入</button>
+    </div>
+
+    <h3 style="font-size:15px;margin:18px 0 6px;">檢驗項目列表</h3>
     <div class="preset-row">
       <span style="font-size:12px;color:var(--ink-soft);align-self:center;">快速套用範本:</span>
       ${Object.keys(PRESETS).map(k=>`<button type="button" class="preset-chip" data-preset="${k}">${k}</button>`).join('')}
@@ -1178,7 +1190,28 @@ function openVisitModal(pet, visit){
   modal.querySelector('#mCancel').addEventListener('click', ()=> overlay.remove());
 
   const panelsEditor = modal.querySelector('#panelsEditor');
+  
+  // 建立/管理面板的內部函式
   function addPanel(name, items){
+    // 先檢查是否已有同名面板，避免快速套用或解析時重複建立
+    let existingBlock = Array.from(panelsEditor.querySelectorAll('.panel-editor'))
+                             .find(b => b.querySelector('.panelName').value.trim() === name);
+    
+    if (existingBlock && name !== '') {
+      const itemsList = existingBlock.querySelector('.itemsList');
+      (items||[]).forEach(it => {
+        // 如果該項目已存在，就更新數值，不存在才新增列
+        let existingRow = Array.from(itemsList.querySelectorAll('.item-edit-row'))
+                               .find(r => r.querySelector('.itName').value.trim().toLowerCase().includes(it.name.split(' ')[0].toLowerCase()));
+        if (existingRow) {
+          if(it.value !== undefined) existingRow.querySelector('.itValue').value = it.value;
+        } else {
+          addItemRow(itemsList, it);
+        }
+      });
+      return existingBlock;
+    }
+
     const block = el('div','panel-editor');
     block.innerHTML = `
       <div class="panel-editor-head">
@@ -1190,25 +1223,30 @@ function openVisitModal(pet, visit){
     `;
     block.querySelector('.removePanel').addEventListener('click', ()=> block.remove());
     const itemsList = block.querySelector('.itemsList');
-    function addItemRow(it){
-      const row = el('div','item-edit-row');
-      row.innerHTML = `
-        <input class="itName" placeholder="項目名稱" value="${it?.name||''}">
-        <input class="itValue" placeholder="數值" value="${it?.value??''}">
-        <input class="itUnit" placeholder="單位" value="${it?.unit||''}">
-        <input class="itLow" placeholder="參考下限" value="${it?.refLow??''}">
-        <input class="itHigh" placeholder="參考上限" value="${it?.refHigh??''}">
-        <button type="button" class="icon-btn removeItem">✕</button>
-      `;
-      row.querySelector('.removeItem').addEventListener('click', ()=> row.remove());
-      itemsList.appendChild(row);
-    }
-    block.querySelector('.addItemRow').addEventListener('click', ()=> addItemRow());
-    (items||[]).forEach(it=> addItemRow(it));
-    if(!items || !items.length) addItemRow();
+    
+    block.querySelector('.addItemRow').addEventListener('click', ()=> addItemRow(itemsList));
+    (items||[]).forEach(it=> addItemRow(itemsList, it));
+    if(!items || !items.length) addItemRow(itemsList);
     panelsEditor.appendChild(block);
+    return block;
   }
 
+  function addItemRow(targetList, it){
+    const row = el('div','item-edit-row');
+    row.innerHTML = `
+      <input class="itName" placeholder="項目名稱" value="${it?.name||''}">
+      <input class="itValue" placeholder="數值" value="${it?.value??''}">
+      <input class="itUnit" placeholder="單位" value="${it?.unit||''}">
+      <input class="itLow" placeholder="參考下限" value="${it?.refLow??''}">
+      <input class="itHigh" placeholder="參考上限" value="${it?.refHigh??''}">
+      <button type="button" class="icon-btn removeItem">✕</button>
+    `;
+    row.querySelector('.removeItem').addEventListener('click', ()=> row.remove());
+    targetList.appendChild(row);
+    return row;
+  }
+
+  // 綁定基礎按鈕
   modal.querySelectorAll('[data-preset]').forEach(btn=>{
     btn.addEventListener('click', ()=> addPanel(btn.dataset.preset, PRESETS[btn.dataset.preset]));
   });
@@ -1218,6 +1256,113 @@ function openVisitModal(pet, visit){
     visit.panels.forEach(p=> addPanel(p.name, p.items));
   }
 
+  // 🌟 核心功能：OCR 智慧文字解析邏輯
+  modal.querySelector('#btnParseOcr').addEventListener('click', () => {
+    const rawText = modal.querySelector('#mOcrInput').value;
+    if (!rawText.trim()) { toast("請先貼上文字內容"); return; }
+
+    // 清理文字中混淆的換行，將可能跨行的項目名稱與數據接起來
+    // 解決 Google 智慧鏡頭常把「項目名」和「數值」切成兩行的問題
+    let cleanedText = rawText
+      .replace(/\n\s*([0-9]+\.?[0-9]*\s*(%|[a-zA-Z\/μµL]*))/g, ' $1') 
+      .replace(/\s+/g, ' ');
+
+    // 定義比對關鍵字對應表（支持中英文縮寫與對齊你設定的 PRESETS）
+    const matchMap = {
+      "紅血球": { name: "紅血球 RBC", panel: "CBC 血液檢查" },
+      "RBC": { name: "紅血球 RBC", panel: "CBC 血液檢查" },
+      "血球容積": { name: "血球容積比 HCT", panel: "CBC 血液檢查" },
+      "HCT": { name: "血球容積比 HCT", panel: "CBC 血液檢查" },
+      "血紅素": { name: "血紅素 HGB", panel: "CBC 血液檢查" },
+      "HGB": { name: "血紅素 HGB", panel: "CBC 血液檢查" },
+      "平均紅血球體積": { name: "平均紅血球體積 MCV", panel: "CBC 血液檢查" },
+      "MCV": { name: "平均紅血球體積 MCV", panel: "CBC 血液檢查" },
+      "平均紅血球血紅素量": { name: "平均紅血球血紅素量 MCH", panel: "CBC 血液檢查" },
+      "MCH": { name: "平均紅血球血紅素量 MCH", panel: "CBC 血液檢查" },
+      "平均紅血球血紅素濃度": { name: "平均紅血球血紅素濃度 MCHC", panel: "CBC 血液檢查" },
+      "MCHC": { name: "平均紅血球血紅素濃度 MCHC", panel: "CBC 血液檢查" },
+      "紅血球分布寬度": { name: "紅血球分布寬度 RDW", panel: "CBC 血液檢查" },
+      "RDW": { name: "紅血球分布寬度 RDW", panel: "CBC 血液檢查" },
+      "網織球": { name: "網織球 RETIC", panel: "CBC 血液檢查" },
+      "RETIC": { name: "網織球 RETIC", panel: "CBC 血液檢查" },
+      "白血球": { name: "白血球 WBC", panel: "CBC 血液檢查" },
+      "WBC": { name: "白血球 WBC", panel: "CBC 血液檢查" },
+      "嗜中性球": { name: "嗜中性球 NEU", panel: "CBC 血液檢查" },
+      "NEU": { name: "嗜中性球 NEU", panel: "CBC 血液檢查" },
+      "淋巴球": { name: "淋巴球 LYM", panel: "CBC 血液檢查" },
+      "LYM": { name: "淋巴球 LYM", panel: "CBC 血液檢查" },
+      "單核球": { name: "單核球 MONO", panel: "CBC 血液檢查" },
+      "MONO": { name: "單核球 MONO", panel: "CBC 血液檢查" },
+      "嗜酸性球": { name: "嗜酸性球 EOS", panel: "CBC 血液檢查" },
+      "EOS": { name: "嗜酸性球 EOS", panel: "CBC 血液檢查" },
+      "嗜鹼性球": { name: "嗜鹼性球 BASO", panel: "CBC 血液檢查" },
+      "BASO": { name: "嗜鹼性球 BASO", panel: "CBC 血液檢查" },
+      "血小板": { name: "血小板 PLT", panel: "CBC 血液檢查" },
+      "PLT": { name: "血小板 PLT", panel: "CBC 血液檢查" },
+      "MPV": { name: "平均血小板體積 MPV", panel: "CBC 血液檢查" },
+      "PDW": { name: "血小板分布寬度 PDW", panel: "CBC 血液檢查" },
+      "PCT": { name: "血小板容積比 PCT", panel: "CBC 血液檢查" },
+      
+      // 生化項目擴充
+      "Na": { name: "鈉 Na", panel: "生化檢查" }, "鈉": { name: "鈉 Na", panel: "生化檢查" },
+      "K": { name: "鉀 K", panel: "生化檢查" }, "鉀": { name: "鉀 K", panel: "生化檢查" },
+      "Cl": { name: "氯 Cl", panel: "生化檢查" }, "氯": { name: "氯 Cl", panel: "生化檢查" },
+      "ALB": { name: "白蛋白 ALB", panel: "生化檢查" }, "白蛋白": { name: "白蛋白 ALB", panel: "生化檢查" },
+      "GLU": { name: "血糖 GLU", panel: "生化檢查" }, "血糖": { name: "血糖 GLU", panel: "生化檢查" },
+      "GPT": { name: "丙酮酸轉氨酶 GPT", panel: "生化檢查" }, "ALT": { name: "丙酮酸轉氨酶 GPT", panel: "生化檢查" },
+      "ALP": { name: "鹼性磷酸酶 ALP", panel: "生化檢查" },
+      "BUN": { name: "血尿素氮 BUN", panel: "生化檢查" },
+      "CRE": { name: "肌酸酐 CRE", panel: "生化檢查" }, "CRSC": { name: "肌酸酐 CRE", panel: "生化檢查" },
+      "IP": { name: "磷離子 IP", panel: "生化檢查" }, "磷": { name: "磷離子 IP", panel: "生化檢查" }
+    };
+
+    // 使用正規表達式抓取： [項目名稱] [數值(含小數點)]
+    const regex = /([A-Za-z\u4e00-\u9fa5\(\)%]+)\s*([0-9]+\.?[0-9]*)/g;
+    let match;
+    let successCount = 0;
+
+    // 先行載入預設範本，以便自動填入參考上下限與單位
+    addPanel("CBC 血液檢查", PRESETS["CBC 血液檢查"]);
+
+    while ((match = regex.exec(cleanedText)) !== null) {
+      const rawName = match[1].trim();
+      const value = match[2].trim();
+
+      // 尋找對應的標準項目名稱
+      let matchedConfig = null;
+      for (let key in matchMap) {
+        if (rawName.toUpperCase().includes(key.toUpperCase())) {
+          matchedConfig = matchMap[key];
+          break;
+        }
+      }
+
+      if (matchedConfig) {
+        // 尋找對應面板中的輸入列
+        const targetPanelBlock = addPanel(matchedConfig.panel); // 取得或建立面板
+        const rows = targetPanelBlock.querySelectorAll('.item-edit-row');
+        
+        for (let row of rows) {
+          const nameInput = row.querySelector('.itName');
+          // 比對項目名稱（例如 "紅血球 RBC" 是否包含 "紅血球"）
+          if (nameInput.value.toUpperCase().includes(rawName.toUpperCase()) || matchedConfig.name.includes(nameInput.value)) {
+            row.querySelector('.itValue').value = value;
+            successCount++;
+            break;
+          }
+        }
+      }
+    }
+
+    if(successCount > 0) {
+      toast(`✨ 成功自動解析並填入 ${successCount} 項數值！`);
+      modal.querySelector('#mOcrInput').value = ""; // 清空輸入框
+    } else {
+      toast("無法辨識文字中的項目，請確認格式是否正確。");
+    }
+  });
+
+  // 儲存回診紀錄邏輯（保持原本的運作）
   modal.querySelector('#mSaveVisit').addEventListener('click', async ()=>{
     const date = modal.querySelector('#mDate').value;
     if(!date){ toast("請選擇回診日期"); return; }
