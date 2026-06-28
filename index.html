@@ -716,7 +716,7 @@ function renderOverview(pet){
   const dailyGrid = el('div', 'daily-log-grid');
   main.appendChild(dailyGrid);
 
-  // 重構後的動態區塊渲染方法，確保每次切換時都全新抓取與綁定
+  // 修正後的動態區塊渲染方法
   function updateDailySection() {
     dailyGrid.innerHTML = '';
     const activeTabObj = tabs.find(t => t.id === currentTab);
@@ -734,11 +734,12 @@ function renderOverview(pet){
       <h3>新增 ${activeTabObj.label}</h3>
       <div class="field"><label>日期</label><input type="date" class="d-date-input" value="${new Date().toISOString().slice(0,10)}"></div>
       ${inputFieldHtml}
-      <button class="btn btn-primary" id="saveDailyBtn" style="padding:8px; margin-top:5px;">儲存單項紀錄</button>
+      <button class="btn btn-primary" style="padding:8px; margin-top:5px; width:100%;">儲存單項紀錄</button>
     `;
 
-    // 關鍵修正：直接利用該 card 的節點內部範圍尋找對應的 input / textarea
-    formCard.querySelector('#saveDailyBtn').addEventListener('click', async () => {
+    // 更安全的按鈕抓取與事件綁定方式（避免 ID 衝突）
+    const saveBtn = formCard.querySelector('button');
+    saveBtn.addEventListener('click', async () => {
       const dateVal = formCard.querySelector('.d-date-input').value;
       const valText = formCard.querySelector('.d-value-input').value.trim();
 
