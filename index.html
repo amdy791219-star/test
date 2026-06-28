@@ -214,7 +214,13 @@
 
   /* photos */
   .photo-strip{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
-  .photo-thumb{width:88px;height:88px;border-radius:8px;object-fit:cover;border:1px solid var(--line);cursor:pointer;}
+  .photo-thumb-wrap{position:relative;width:88px;height:88px;}
+  .photo-thumb{width:88px;height:88px;border-radius:8px;object-fit:cover;border:1px solid var(--line);cursor:pointer;display:block;}
+  .photo-del-btn{
+    position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;
+    background:var(--coral);color:#fff;border:none;font-size:12px;line-height:1;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.25);
+  }
   .upload-box{border:1px dashed var(--line);border-radius:8px;padding:16px;text-align:center;color:var(--ink-soft);font-size:13px;cursor:pointer;}
   .upload-box:hover{border-color:var(--teal);}
   #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:60;}
@@ -629,6 +635,10 @@ async function uploadPhotoForVisit(visit, file){
   await updateDoc(doc(db,'visits',visit.id), { photoURLs: arrayUnion(dataUrl) });
   toast("照片已新增");
 }
+async function deletePhotoFromVisit(visit, dataUrl){
+  await updateDoc(doc(db,'visits',visit.id), { photoURLs: arrayRemove(dataUrl) });
+  toast("照片已刪除");
+}
 
 /* ============================================================
    SIDEBAR
@@ -748,8 +758,16 @@ function renderOverview(pet){
 
     const formCard = el('div', 'daily-form-card');
     let inputFieldHtml = '';
+    let photoFieldHtml = '';
     if (activeTabObj.id === 'notes') {
       inputFieldHtml = `<div class="field"><label>${activeTabObj.label}</label><textarea class="d-value-input" placeholder="${activeTabObj.placeholder}"></textarea></div>`;
+      photoFieldHtml = `
+        <div class="field">
+          <label>照片(選填)</label>
+          <div class="upload-box d-photo-box">📷 點此選擇照片</div>
+          <input type="file" accept="image/*" class="d-photo-input" style="display:none;">
+          <div class="d-photo-preview" style="margin-top:8px;"></div>
+        </div>`;
     } else {
       inputFieldHtml = `<div class="field"><label>${activeTabObj.label} (${activeTabObj.unit})</label><input type="number" step="0.01" class="d-value-input" placeholder="${activeTabObj.placeholder}"></div>`;
     }
@@ -758,8 +776,39 @@ function renderOverview(pet){
       <h3>新增 ${activeTabObj.label}</h3>
       <div class="field"><label>日期</label><input type="date" class="d-date-input" value="${new Date().toISOString().slice(0,10)}"></div>
       ${inputFieldHtml}
+      ${photoFieldHtml}
       <button type="button" class="btn btn-primary btn-save-daily" style="padding:8px; margin-top:5px; width:100%;">儲存單項紀錄</button>
     `;
+
+    let pendingPhotoDataUrl = "";
+    if(activeTabObj.id === 'notes'){
+      const photoBox = formCard.querySelector('.d-photo-box');
+      const photoInput = formCard.querySelector('.d-photo-input');
+      const photoPreview = formCard.querySelector('.d-photo-preview');
+      photoBox.addEventListener('click', ()=> photoInput.click());
+      photoInput.addEventListener('change', async (e)=>{
+        const f = e.target.files[0];
+        if(!f) return;
+        photoBox.textContent = "處理中...";
+        try{
+          const dataUrl = await compressImageToBase64(f);
+          if(dataUrl.length > 700000){
+            toast("這張照片壓縮後仍太大,請換一張較小的照片");
+            photoBox.textContent = "📷 點此選擇照片";
+            return;
+          }
+          pendingPhotoDataUrl = dataUrl;
+          photoPreview.innerHTML = "";
+          const previewImg = el('img','photo-thumb');
+          previewImg.src = dataUrl;
+          photoPreview.appendChild(previewImg);
+          photoBox.textContent = "📷 已選擇照片(點此更換)";
+        }catch(err){
+          toast("照片處理失敗,請換一張試試");
+          photoBox.textContent = "📷 點此選擇照片";
+        }
+      });
+    }
 
     const saveBtn = formCard.querySelector('.btn-save-daily');
     saveBtn.addEventListener('click', async (e) => {
@@ -776,12 +825,14 @@ function renderOverview(pet){
         food: currentTab === 'food' ? valText : "", 
         weight: currentTab === 'weight' ? valText : "", 
         breath: currentTab === 'breath' ? valText : "", 
-        notes: currentTab === 'notes' ? valText : "" 
+        notes: currentTab === 'notes' ? valText : "",
+        photoURL: currentTab === 'notes' ? pendingPhotoDataUrl : ""
       };
 
       try {
         await createDailyLog(pet.id, logData);
         formCard.querySelector('.d-value-input').value = "";
+        pendingPhotoDataUrl = "";
       } catch (err) {
         console.error("儲存失敗:", err);
         toast("儲存失敗,請檢查權限設定");
@@ -796,6 +847,7 @@ function renderOverview(pet){
     } else {
       filteredLogs.forEach(log => {
         const row = el('div', 'daily-log-item');
+        row.style.flexDirection = 'column';
         let displayVal = '';
         if (currentTab === 'notes') {
           displayVal = `${activeTabObj.icon} 狀況: ${log.notes}`;
@@ -805,15 +857,26 @@ function renderOverview(pet){
         }
 
         row.innerHTML = `
-          <div>
-            <span class="d-date">${log.date}</span>
-            <div class="d-vals">${displayVal}</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%;">
+            <div>
+              <span class="d-date">${log.date}</span>
+              <div class="d-vals">${displayVal}</div>
+            </div>
+            <button type="button" class="icon-btn delLogBtn" style="font-size:12px; margin-left:6px; color:var(--ink-soft);">✕</button>
           </div>
-          <button type="button" class="icon-btn delLogBtn" style="font-size:12px; margin-left:6px; color:var(--ink-soft);">✕</button>
         `;
         row.querySelector('.delLogBtn').addEventListener('click', () => {
           if (confirm("確定要刪除這條紀錄嗎?")) deleteDailyLog(log.id);
         });
+        if(currentTab === 'notes' && log.photoURL){
+          const photoWrap = el('div','photo-thumb-wrap');
+          photoWrap.style.marginTop = '8px';
+          const thumb = el('img','photo-thumb');
+          thumb.src = log.photoURL;
+          thumb.addEventListener('click', ()=> openLightbox(log.photoURL));
+          photoWrap.appendChild(thumb);
+          row.appendChild(photoWrap);
+        }
         listBox.appendChild(row);
       });
     }
@@ -898,10 +961,19 @@ function renderVisitDetail(pet){
   photoSection.appendChild(el('h3','', '檢驗單照片'));
   const strip = el('div','photo-strip');
   (visit.photoURLs||[]).forEach(url=>{
+    const wrap = el('div','photo-thumb-wrap');
     const img = el('img','photo-thumb');
     img.src = url;
     img.addEventListener('click', ()=> openLightbox(url));
-    strip.appendChild(img);
+    const delBtn = el('button','photo-del-btn','✕');
+    delBtn.type = 'button';
+    delBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(confirm('確定要刪除這張照片嗎?')) deletePhotoFromVisit(visit, url);
+    });
+    wrap.appendChild(img);
+    wrap.appendChild(delBtn);
+    strip.appendChild(wrap);
   });
   const uploadBox = el('div','upload-box', '📷 點此上傳照片');
   const fileInput = document.createElement('input');
