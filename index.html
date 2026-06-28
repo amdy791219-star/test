@@ -1,329 +1,1032 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>飛飛 (FeiFei) - 寵物醫療歷史健康紀錄系統</title>
-    <style>
-        /* 基礎樣式重設與字體設定 */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f4f6f9;
-            color: #333333;
-            line-height: 1.6;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-        
-        /* 頁首寵物基本資訊看板 */
-        header {
-            background-color: #2c3e50;
-            color: #ffffff;
-            padding: 24px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        header h1 {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-        .pet-info-grid {
-            border-top: 1px solid rgba(255,255,255,0.2);
-            padding-top: 12px;
-            margin-top: 12px;
-        }
-        .info-item {
-            display: inline-block;
-            margin-right: 30px;
-            font-size: 14px;
-        }
-        .info-item strong {
-            color: #1abc9c;
-        }
-        
-        /* 歷史紀錄日期切換工具列 */
-        .toolbar {
-            background: #ffffff;
-            padding: 15px 24px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .toolbar label {
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        .toolbar select {
-            padding: 8px 16px;
-            font-size: 14px;
-            border: 1px solid #ccd1d1;
-            border-radius: 4px;
-            background-color: #fff;
-            cursor: pointer;
-            outline: none;
-        }
-        .toolbar select:focus {
-            border-color: #3498db;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>毛孩病歷本 · 寵物醫療紀錄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#FAF7F0;
+    --card:#FFFFFF;
+    --ink:#2B2B28;
+    --ink-soft:#73705F;
+    --teal:#3F6B66;
+    --teal-dark:#2C4A46;
+    --teal-pale:#E7EFEC;
+    --coral:#C1453D;
+    --coral-pale:#FBEAE8;
+    --blue:#3D6FC1;
+    --blue-pale:#EAF0FB;
+    --line:#E1DCC9;
+    --sage:#EFEBDC;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{font-family:'Newsreader',serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;font-size:14px;}
+  a{color:var(--teal-dark);}
+  .hidden{display:none !important;}
 
-        /* 報告卡片樣式控制 */
-        .card {
-            background: #ffffff;
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            border-left: 5px solid #34495e;
-            display: none; /* 預設隱藏，由 JS 控制顯示 */
-        }
-        .card.active {
-            display: block; /* 被選中的區塊才顯示 */
-        }
-        .card.cbc { border-left-color: #3498db; }
-        .card.biochem { border-left-color: #e67e22; }
-        
-        .card-header {
-            margin-bottom: 15px;
-            border-bottom: 2px solid #eaeded;
-            padding-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .card-header h2 {
-            font-size: 18px;
-            color: #2c3e50;
-        }
-        .card-header .date-badge {
-            background-color: #ecf0f1;
-            color: #7f8c8d;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
-        /* 表格結構樣式 */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        th, td {
-            padding: 10px 12px;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        th {
-            background-color: #f8fafc;
-            color: #475569;
-            font-weight: 600;
-        }
-        tr:hover {
-            background-color: #f8fafc;
-        }
-        
-        /* 數值高低狀態標籤 */
-        .status {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .status.low {
-            background-color: #eae6ff;
-            color: #4f46e5;
-        }
-        .status.high {
-            background-color: #fee2e2;
-            color: #dc2626;
-        }
-        .status.normal {
-            background-color: #dcfee2;
-            color: #16a34a;
-        }
-        
-        /* 臨床備註欄位 */
-        .notes {
-            margin-top: 15px;
-            background-color: #fdfefe;
-            border: 1px dashed #bdc3c7;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            color: #555;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            font-size: 12px;
-            color: #95a5a6;
-            padding-bottom: 20px;
-        }
-    </style>
+  /* ---------- Auth screen ---------- */
+  #authScreen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(63,107,102,0.07), transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(193,69,61,0.06), transparent 40%),
+      var(--paper);
+  }
+  .auth-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:40px 36px;
+    width:100%;
+    max-width:380px;
+    box-shadow:0 1px 2px rgba(43,43,40,0.04), 0 12px 32px rgba(43,43,40,0.06);
+  }
+  .auth-mark{
+    width:44px;height:44px;border-radius:10px;
+    background:var(--teal);
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:18px;
+  }
+  .auth-mark svg{width:24px;height:24px;}
+  .auth-card h1{font-size:24px;margin:0 0 4px;font-weight:600;}
+  .auth-card p.sub{color:var(--ink-soft);font-size:13px;margin:0 0 24px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:6px;letter-spacing:.02em;}
+  .field input{
+    width:100%;padding:10px 12px;border:1px solid var(--line);
+    border-radius:8px;background:var(--paper);color:var(--ink);
+    transition:border-color .15s;
+  }
+  .field input:focus{outline:none;border-color:var(--teal);}
+  .btn{
+    border:none;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;
+    transition:transform .08s, background .15s, box-shadow .15s;
+  }
+  .btn:active{transform:scale(0.98);}
+  .btn-primary{background:var(--teal);color:#fff;width:100%;padding:11px;margin-top:6px;}
+  .btn-primary:hover{background:var(--teal-dark);}
+  .btn-ghost{background:transparent;color:var(--teal-dark);}
+  .btn-line{background:transparent;border:1px solid var(--line);color:var(--ink);}
+  .btn-line:hover{border-color:var(--teal);}
+  .btn-danger-ghost{background:transparent;color:var(--coral);}
+  .auth-switch{text-align:center;margin-top:18px;font-size:13px;color:var(--ink-soft);}
+  .auth-switch button{background:none;border:none;color:var(--teal-dark);font-weight:600;padding:0;}
+  .auth-error{
+    background:var(--coral-pale);color:var(--coral);font-size:13px;
+    padding:8px 12px;border-radius:8px;margin-bottom:14px;
+  }
+
+  /* ---------- App shell ---------- */
+  #app{display:flex;min-height:100vh;}
+  #sidebar{
+    width:248px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;padding:20px 16px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;padding:0 4px 22px;border-bottom:1px solid var(--line);margin-bottom:16px;}
+  .brand .auth-mark{width:32px;height:32px;border-radius:8px;margin:0;}
+  .brand span{font-family:'Newsreader',serif;font-weight:600;font-size:17px;}
+  #petList{flex:1;overflow-y:auto;}
+  .pet-chip{
+    display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;
+    cursor:pointer;margin-bottom:4px;color:var(--ink-soft);font-size:14px;font-weight:500;
+  }
+  .pet-chip:hover{background:var(--sage);}
+  .pet-chip.active{background:var(--teal-pale);color:var(--teal-dark);}
+  .pet-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex:none;}
+  .pet-chip.active .dot{background:var(--teal);}
+  #sidebar .btn-line{width:100%;text-align:left;margin-top:8px;}
+  .sidebar-footer{border-top:1px solid var(--line);padding-top:14px;margin-top:14px;font-size:13px;color:var(--ink-soft);}
+  .sidebar-footer .email{display:block;margin-bottom:8px;word-break:break-all;}
+
+  #main{flex:1;overflow-y:auto;padding:32px 40px;max-width:980px;}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+  .topbar h1{font-size:28px;margin:0;font-weight:600;}
+  .topbar .meta{color:var(--ink-soft);font-size:13px;margin-top:4px;}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+  .empty-state{
+    border:1px dashed var(--line);border-radius:14px;padding:48px 24px;text-align:center;color:var(--ink-soft);
+  }
+  .empty-state h3{color:var(--ink);margin:0 0 6px;}
+
+  /* pet cards (overview list) */
+  .pet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+  .pet-card{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;cursor:pointer;
+    transition:border-color .15s, transform .1s;
+  }
+  .pet-card:hover{border-color:var(--teal);}
+  .pet-card .pname{font-family:'Newsreader',serif;font-size:19px;font-weight:600;margin:0 0 2px;}
+  .pet-card .pmeta{font-size:12.5px;color:var(--ink-soft);}
+  .pet-card .pvisits{margin-top:12px;font-size:12px;color:var(--teal-dark);font-weight:600;}
+
+  /* visit timeline */
+  .timeline{border-left:2px solid var(--line);margin-left:8px;padding-left:22px;}
+  .visit-row{
+    position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:border-color .15s;
+  }
+  .visit-row:hover{border-color:var(--teal);}
+  .visit-row::before{
+    content:'';position:absolute;left:-30px;top:18px;width:10px;height:10px;border-radius:50%;
+    background:var(--teal);border:2px solid var(--paper);
+  }
+  .visit-row .vdate{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--teal-dark);font-weight:600;}
+  .visit-row .vclinic{font-size:13px;color:var(--ink-soft);margin-top:2px;}
+  .visit-row .vflags{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;}
+  .flag-pill{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;}
+  .flag-pill.high{background:var(--coral-pale);color:var(--coral);}
+  .flag-pill.low{background:var(--blue-pale);color:var(--blue);}
+
+  /* panel / test item table */
+  .panel-block{border:1px solid var(--line);border-radius:12px;margin-bottom:18px;overflow:hidden;background:var(--card);}
+  .panel-head{background:var(--sage);padding:10px 16px;font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center;}
+  .item-row{display:grid;grid-template-columns:1fr 90px 220px;gap:14px;align-items:center;padding:10px 16px;border-top:1px solid var(--line);}
+  .item-row .iname{font-size:13.5px;}
+  .item-row .ival{font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:600;text-align:right;}
+  .item-row .ival.high{color:var(--coral);}
+  .item-row .ival.low{color:var(--blue);}
+  .range-bar{position:relative;height:8px;background:var(--line);border-radius:4px;}
+  .range-bar .normal-zone{position:absolute;top:0;bottom:0;background:var(--teal-pale);border-radius:4px;}
+  .range-bar .marker{
+    position:absolute;top:-3px;width:3px;height:14px;border-radius:2px;background:var(--ink);
+    transform:translateX(-50%);
+  }
+  .range-bar .marker.high{background:var(--coral);}
+  .range-bar .marker.low{background:var(--blue);}
+  .range-caption{font-size:10.5px;color:var(--ink-soft);display:flex;justify-content:space-between;margin-top:3px;}
+
+  /* forms / modals */
+  .overlay{
+    position:fixed;inset:0;background:rgba(43,43,40,0.45);display:flex;align-items:center;justify-content:center;
+    padding:20px;z-index:50;
+  }
+  .modal{
+    background:var(--card);border-radius:16px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;
+    padding:28px 28px 24px;
+  }
+  .modal h2{margin:0 0 18px;font-size:21px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .field textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper);min-height:70px;resize:vertical;}
+  .panel-editor{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px;background:var(--paper);}
+  .panel-editor-head{display:flex;gap:10px;align-items:center;margin-bottom:10px;}
+  .panel-editor-head input{flex:1;font-weight:600;}
+  .item-edit-row{display:grid;grid-template-columns:1.4fr .8fr .6fr .7fr .7fr 28px;gap:6px;margin-bottom:6px;align-items:center;}
+  .item-edit-row input{padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:12.5px;}
+  .icon-btn{background:none;border:none;color:var(--ink-soft);font-size:16px;line-height:1;padding:2px;}
+  .icon-btn:hover{color:var(--coral);}
+  .preset-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px;}
+  .preset-chip{font-size:12px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);}
+  .preset-chip:hover{border-color:var(--teal);color:var(--teal-dark);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;border-top:1px solid var(--line);padding-top:16px;}
+
+  /* photos */
+  .photo-strip{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  .photo-thumb{width:88px;height:88px;border-radius:8px;object-fit:cover;border:1px solid var(--line);cursor:pointer;}
+  .upload-box{border:1px dashed var(--line);border-radius:8px;padding:16px;text-align:center;color:var(--ink-soft);font-size:13px;cursor:pointer;}
+  .upload-box:hover{border-color:var(--teal);}
+  #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:60;}
+  #lightbox img{max-width:92vw;max-height:92vh;border-radius:6px;}
+
+  .toast{
+    position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:11px 18px;
+    border-radius:8px;font-size:13.5px;z-index:80;box-shadow:0 6px 20px rgba(0,0,0,.2);
+  }
+  .crumb{font-size:13px;color:var(--ink-soft);margin-bottom:6px;}
+  .crumb button{background:none;border:none;color:var(--teal-dark);font-weight:600;padding:0;font-size:13px;}
+
+  select{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper);width:100%;}
+
+  .trend-controls{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap;}
+  .trend-controls select{width:auto;min-width:200px;}
+  .chart-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;}
+
+  @media (max-width: 760px){
+    #app{flex-direction:column;}
+    #sidebar{width:100%;flex-direction:row;overflow-x:auto;align-items:center;}
+    #petList{display:flex;flex:none;}
+    .pet-chip{white-space:nowrap;}
+    .brand{display:none;}
+    .sidebar-footer{display:none;}
+    #main{padding:20px;}
+    .item-row{grid-template-columns:1fr 70px 140px;}
+    .item-edit-row{grid-template-columns:1fr;}
+  }
+</style>
 </head>
 <body>
 
-<div class="container">
-    <header>
-        <h1>🐾 飛飛 (FeiFei) 醫療健康歷史紀錄看板</h1>
-        <div class="pet-info-grid">
-            <div class="info-item">物種/品種：<strong>犬 / 柴犬 (Shiba Inu)</strong></div>
-            <div class="info-item">性別：<strong>母 / 已結紮</strong></div>
-            <div class="info-item">年齡：<strong>13 歲</strong></div>
-            <div class="info-item">飼主：<strong>劉 欽源 (037165)</strong></div>
-        </div>
-    </header>
-
-    <div class="toolbar">
-        <label for="record-select">選擇檢驗歷史紀錄：</label>
-        <select id="record-select" onchange="switchRecord()">
-            </select>
+<!-- ============ AUTH SCREEN ============ -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.35-9.5-8.8C.7 8.7 2.3 5 6 5c2 0 3.2 1.1 4 2.2C10.8 6.1 12 5 14 5c3.7 0 5.3 3.7 3.5 7.2C19 16.65 12 21 12 21z" fill="#fff"/></svg></div>
+    <h1 id="authTitle">登入病歷本</h1>
+    <p class="sub" id="authSub">記錄每一次回診、檢驗數值與趨勢變化</p>
+    <div id="authError" class="auth-error hidden"></div>
+    <div class="field" id="nameField" style="display:none;">
+      <label>你的稱呼(飼主/管理人)</label>
+      <input id="inputName" type="text" placeholder="例如:欽源">
     </div>
-
-    <div id="report-container"></div>
+    <div class="field">
+      <label>Email</label>
+      <input id="inputEmail" type="email" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label>密碼</label>
+      <input id="inputPassword" type="password" placeholder="至少 6 個字元">
+    </div>
+    <button class="btn btn-primary" id="authSubmitBtn">登入</button>
+    <div class="auth-switch">
+      <span id="authSwitchText">還沒有帳號?</span>
+      <button id="authSwitchBtn">建立帳號</button>
+    </div>
+  </div>
 </div>
 
-<div class="footer">
-    <p>築心動物醫院 檢驗紀錄管理網頁 • 本資料僅供個人寵物健康管理與主治醫師評估參考</p>
+<!-- ============ MAIN APP ============ -->
+<div id="app" class="hidden">
+  <div id="sidebar">
+    <div class="brand">
+      <div class="auth-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.35-9.5-8.8C.7 8.7 2.3 5 6 5c2 0 3.2 1.1 4 2.2C10.8 6.1 12 5 14 5c3.7 0 5.3 3.7 3.5 7.2C19 16.65 12 21 12 21z" fill="#fff"/></svg></div>
+      <span>毛孩病歷本</span>
+    </div>
+    <div id="petList"></div>
+    <button class="btn btn-line" id="addPetBtn">+ 新增寵物</button>
+    <div class="sidebar-footer">
+      <span class="email" id="userEmailLabel"></span>
+      <button class="btn-ghost btn" id="logoutBtn" style="padding:0;">登出</button>
+    </div>
+  </div>
+  <div id="main"></div>
 </div>
 
-<script>
-/**
- * 💡 未來如果有更新的醫療報告，你只需要按相同格式，將新資料複製貼在以下陣列的第一個位置即可！
- */
-const medicalHistory = [
-    {
-        date: "2025-11-21",
-        title: "🧪 臨床生物化學檢驗 (FUJI 500)",
-        type: "biochem",
-        weight: "7.40 公斤",
-        headers: ["項目(英)", "項目(中)", "原始結果", "手寫/最新修正值", "單位", "參考範圍", "狀態標記"],
-        notes: "1. <strong>CRE (肌酸酐) 2.37 / 2.36</strong> 明顯高於標準範圍，提示高齡犬需特別注意腎功能與慢性腎臟病 (CKD) 的分級與追蹤。<br>2. <strong>ALP (鹼性磷酸酶) 520 / 589</strong> 異常升高，需評估肝膽系統、內分泌問題（如庫興氏症）或進行進一步超音波檢查。<br>3. <strong>ALB (白蛋白) 2.4 / 2.9</strong> 初診值低，手寫更新修正至正常範圍內。",
-        data: [
-            ["Na", "鈉", "145", "143", "mEq/L", "141 ~ 152", "normal"],
-            ["K", "鉀", "5.0", "4.3", "mEq/L", "3.8 ~ 5", "normal"],
-            ["Cl", "氯", "115", "110", "mEq/L", "102 ~ 117", "normal"],
-            ["CRE", "肌酸酐", "2.37", "2.36", "mg/dL", "0.4 ~ 1.4", "high"],
-            ["IP", "磷離子", "3.5", "3.6", "mg/dL", "1.9 ~ 5", "normal"],
-            ["BUN", "血尿素氮", "19.8", "19.8", "mg/dL", "9.2 ~ 29.2", "normal"],
-            ["ALP", "鹼性磷酸酶", "520", "589", "U/L", "47 ~ 254", "high"],
-            ["GPT", "丙氨酸轉氨酶", "45", "--", "U/L", "17 ~ 78", "normal"],
-            ["GLU", "血糖", "112", "--", "mg/dL", "75 ~ 128", "normal"],
-            ["ALB", "白蛋白", "2.4", "2.9", "g/dL", "2.6 ~ 4", "low"],
-            ["BUN/CRE", "比值", "8.4", "--", "mg/mg", "~", "normal"],
-            ["Na/K", "比值", "29.0", "--", "--", "~", "normal"]
-        ]
-    },
-    {
-        date: "2025-09-27",
-        title: "🩸 全血球計數 (ProCyte One)",
-        type: "cbc",
-        weight: "7.40 公斤",
-        headers: ["檢驗項目", "英文縮寫", "檢驗結果", "參考區間", "狀態標記"],
-        notes: "HCT (血球容積比), HGB (血紅素), MCV (平均紅血球體積), MCH 偏低，伴隨 RDW (紅血球分布寬度) 偏高，可能提示小細胞性貧血或相關紅血球生成異常；白血球 (WBC) 與淋巴球 (LYM) 計數稍微偏低，需持續追蹤免疫與身體整體狀態。",
-        data: [
-            ["紅血球", "RBC", "6.71 M/μL", "5.65 - 8.87", "normal"],
-            ["血球容積比", "HCT", "31.4 %", "37.3 - 61.7", "low"],
-            ["血紅素", "HGB", "11.5 g/dL", "13.1 - 20.5", "low"],
-            ["平均紅血球體積", "MCV", "46.8 fL", "61.6 - 73.5", "low"],
-            ["平均紅血球血紅素量", "MCH", "17.1 pg", "21.2 - 25.9", "low"],
-            ["平均紅血球血紅素濃度", "MCHC", "36.6 g/dL", "32.0 - 37.9", "normal"],
-            ["紅血球分布寬度", "RDW", "25.4 %", "13.6 - 21.7", "high"],
-            ["網織球百分比", "% RETIC", "0.2 %", "--", "normal"],
-            ["網織球絕對值", "RETIC", "13.3 K/μL", "10.0 - 110.0", "normal"],
-            ["白血球", "WBC", "4.82 K/μL", "5.05 - 16.76", "low"],
-            ["淋巴球絕對值", "LYM", "0.82 K/μL", "1.05 - 5.10", "low"],
-            ["嗜中性球絕對值", "NEU", "3.35 K/μL", "2.95 - 11.64", "normal"],
-            ["單核球絕對值", "MONO", "0.40 K/μL", "0.16 - 1.12", "normal"],
-            ["嗜酸性球絕對值", "EOS", "0.24 K/μL", "0.06 - 1.23", "normal"],
-            ["嗜鹼性球絕對值", "BASO", "0.01 K/μL", "0.00 - 0.10", "normal"],
-            ["血小板", "PLT", "280 K/μL", "148 - 484", "normal"]
-        ]
+<div id="toastHost"></div>
+
+<script type="module">
+/* ============================================================
+   FIREBASE 設定 —— 請依照 README.md 建立你自己的 Firebase 專案
+   並把下方的 firebaseConfig 換成你自己的設定值
+   ============================================================ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged, updateProfile
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDoc,
+  query, where, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+  getStorage, ref, uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCBPpQXbAZOKncUSxpnvjAWxXSHXnABjHI",
+  authDomain: "pet-record-94a50.firebaseapp.com",
+  projectId: "pet-record-94a50",
+  storageBucket: "pet-record-94a50.firebasestorage.app",
+  messagingSenderId: "722991147631",
+  appId: "1:722991147631:web:d3527b173510fa3d7bfb9a",
+  measurementId: "G-3KQRD3WQBG"
+};
+
+let app, auth, db, storage, configOk = true;
+try{
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+}catch(e){ configOk = false; }
+
+/* ============================================================
+   常用檢驗項目範本(取自 CBC 血液檢查 / 生化檢查)
+   ============================================================ */
+const PRESETS = {
+  "CBC 血液檢查": [
+    {name:"紅血球 RBC", unit:"M/µL", refLow:5.65, refHigh:8.87},
+    {name:"血球容積比 HCT", unit:"%", refLow:37.3, refHigh:61.7},
+    {name:"血紅素 HGB", unit:"g/dL", refLow:13.1, refHigh:20.5},
+    {name:"平均紅血球體積 MCV", unit:"fL", refLow:61.6, refHigh:73.5},
+    {name:"平均紅血球血紅素量 MCH", unit:"pg", refLow:21.2, refHigh:25.9},
+    {name:"平均紅血球血紅素濃度 MCHC", unit:"g/dL", refLow:32.0, refHigh:37.9},
+    {name:"紅血球分布寬度 RDW", unit:"%", refLow:13.6, refHigh:21.7},
+    {name:"網織球 RETIC", unit:"K/µL", refLow:10.0, refHigh:110.0},
+    {name:"白血球 WBC", unit:"K/µL", refLow:5.05, refHigh:16.76},
+    {name:"嗜中性球 NEU", unit:"K/µL", refLow:2.95, refHigh:11.64},
+    {name:"淋巴球 LYM", unit:"K/µL", refLow:1.05, refHigh:5.10},
+    {name:"單核球 MONO", unit:"K/µL", refLow:0.16, refHigh:1.12},
+    {name:"嗜酸性球 EOS", unit:"K/µL", refLow:0.06, refHigh:1.23},
+    {name:"嗜鹼性球 BASO", unit:"K/µL", refLow:0.00, refHigh:0.10},
+    {name:"血小板 PLT", unit:"K/µL", refLow:148, refHigh:484},
+    {name:"平均血小板體積 MPV", unit:"fL", refLow:8.7, refHigh:13.2},
+  ],
+  "生化檢查": [
+    {name:"鈉 Na", unit:"mEq/L", refLow:141, refHigh:152},
+    {name:"鉀 K", unit:"mEq/L", refLow:3.8, refHigh:5.0},
+    {name:"氯 Cl", unit:"mEq/L", refLow:102, refHigh:117},
+    {name:"血尿素氮 BUN", unit:"mg/dL", refLow:9.2, refHigh:29.2},
+    {name:"肌酸酐 CRE", unit:"mg/dL", refLow:0.4, refHigh:1.4},
+    {name:"磷離子 IP", unit:"mg/dL", refLow:1.9, refHigh:5.0},
+  ]
+};
+
+/* ============================================================
+   狀態
+   ============================================================ */
+let currentUser = null;
+let pets = [];
+let visitsByPet = {};
+let activePetId = null;
+let activeView = "overview"; // overview | visitDetail | trends
+let activeVisitId = null;
+let unsubPets = null;
+let unsubVisits = null;
+let authMode = "login"; // login | signup
+
+/* ============================================================
+   工具
+   ============================================================ */
+function toast(msg){
+  const host = document.getElementById('toastHost');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  host.appendChild(el);
+  setTimeout(()=>el.remove(), 2600);
+}
+function fmtDate(d){
+  if(!d) return "";
+  const dt = (d instanceof Date) ? d : new Date(d);
+  return dt.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+}
+function flagFor(value, low, high){
+  if(low==null||high==null||value===""||value==null||isNaN(value)) return null;
+  const v = parseFloat(value);
+  if(v < parseFloat(low)) return "low";
+  if(v > parseFloat(high)) return "high";
+  return null;
+}
+function el(tag, cls, html){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(html!==undefined) e.innerHTML = html;
+  return e;
+}
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+const authTitle = document.getElementById('authTitle');
+const authSub = document.getElementById('authSub');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const authSwitchText = document.getElementById('authSwitchText');
+const authSwitchBtn = document.getElementById('authSwitchBtn');
+const nameField = document.getElementById('nameField');
+const authError = document.getElementById('authError');
+
+function setAuthMode(mode){
+  authMode = mode;
+  if(mode==="login"){
+    authTitle.textContent = "登入病歷本";
+    authSub.textContent = "記錄每一次回診、檢驗數值與趨勢變化";
+    authSubmitBtn.textContent = "登入";
+    authSwitchText.textContent = "還沒有帳號?";
+    authSwitchBtn.textContent = "建立帳號";
+    nameField.style.display = "none";
+  }else{
+    authTitle.textContent = "建立帳號";
+    authSub.textContent = "建立一個帳號來開始記錄寵物的健康";
+    authSubmitBtn.textContent = "建立帳號";
+    authSwitchText.textContent = "已經有帳號了?";
+    authSwitchBtn.textContent = "登入";
+    nameField.style.display = "block";
+  }
+  authError.classList.add('hidden');
+}
+authSwitchBtn.addEventListener('click', ()=> setAuthMode(authMode==="login"?"signup":"login"));
+
+authSubmitBtn.addEventListener('click', async ()=>{
+  if(!configOk){
+    authError.textContent = "尚未設定 Firebase(請依照 README.md 設定 firebaseConfig)";
+    authError.classList.remove('hidden');
+    return;
+  }
+  const email = document.getElementById('inputEmail').value.trim();
+  const password = document.getElementById('inputPassword').value;
+  const name = document.getElementById('inputName').value.trim();
+  authError.classList.add('hidden');
+  try{
+    if(authMode === "signup"){
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      if(name) await updateProfile(cred.user, {displayName:name});
+    }else{
+      await signInWithEmailAndPassword(auth, email, password);
     }
-];
+  }catch(e){
+    authError.textContent = humanizeAuthError(e.code);
+    authError.classList.remove('hidden');
+  }
+});
+function humanizeAuthError(code){
+  const map = {
+    'auth/email-already-in-use':'這個 Email 已經被註冊過了',
+    'auth/invalid-email':'Email 格式不正確',
+    'auth/weak-password':'密碼至少需要 6 個字元',
+    'auth/user-not-found':'找不到這個帳號',
+    'auth/wrong-password':'密碼不正確',
+    'auth/invalid-credential':'帳號或密碼不正確',
+  };
+  return map[code] || ("發生錯誤:" + code);
+}
+document.getElementById('logoutBtn').addEventListener('click', ()=> signOut(auth));
 
-// 初始化網頁與動態生成選單與表格
-function init() {
-    const selectEl = document.getElementById('record-select');
-    const containerEl = document.getElementById('report-container');
-    
-    medicalHistory.forEach((item, index) => {
-        // 1. 動態生成下拉選單選項
-        const option = document.createElement('option');
-        option.value = index;
-        option.textContent = `${item.date} - ${item.title.substring(2)}`;
-        selectEl.appendChild(option);
-        
-        // 2. 動態生成報告區塊卡片
-        const card = document.createElement('div');
-        card.id = `card-${index}`;
-        card.className = `card ${item.type} ${index === 0 ? 'active' : ''}`;
-        
-        // 生成表頭 HTML
-        let tableHeaders = item.headers.map(h => `<th>${h}</th>`).join('');
-        
-        // 生成資料列 HTML
-        let tableRows = item.data.map(row => {
-            let cells = row.map((cell, idx) => {
-                // 檢查是否為最後一欄（狀態標記）
-                if (idx === row.length - 1) {
-                    let statusText = "正常";
-                    if (cell === 'high') statusText = "高 (High)";
-                    if (cell === 'low') statusText = "低 (Low)";
-                    return `<td><span class="status ${cell}">${statusText}</span></td>`;
-                }
-                return `<td>${cell}</td>`;
-            }).join('');
-            return `<tr>${cells}</tr>`;
-        }).join('');
-
-        // 將資料組合填入卡片
-        card.innerHTML = `
-            <div class="card-header">
-                <h2>${item.title}</h2>
-                <span class="date-badge">體重紀錄：${item.weight}</span>
-            </div>
-            <table>
-                <thead><tr>${tableHeaders}</tr></thead>
-                <tbody>${tableRows}</tbody>
-            </table>
-            <div class="notes"><strong>💡 臨床觀察備註：</strong><br>${item.notes}</div>
-        `;
-        containerEl.appendChild(card);
-    });
+function bootAuthListener(){
+  if(!configOk) return;
+  onAuthStateChanged(auth, (user)=>{
+    currentUser = user;
+    if(user){
+      document.getElementById('authScreen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      document.getElementById('userEmailLabel').textContent = user.displayName ? `${user.displayName} · ${user.email}` : user.email;
+      subscribePets();
+    }else{
+      document.getElementById('authScreen').classList.remove('hidden');
+      document.getElementById('app').classList.add('hidden');
+      if(unsubPets) unsubPets();
+      if(unsubVisits) unsubVisits();
+      pets = []; visitsByPet = {}; activePetId = null;
+    }
+  });
 }
 
-// 處理選單切換動作
-function switchRecord() {
-    const selectedIndex = document.getElementById('record-select').value;
-    const cards = document.querySelectorAll('.card');
-    cards.forEach((card, index) => {
-        if (index == selectedIndex) {
-            card.classList.add('active');
-        } else {
-            card.classList.remove('active');
+/* ============================================================
+   FIRESTORE: 寵物
+   ============================================================ */
+function subscribePets(){
+  if(unsubPets) unsubPets();
+  const q = query(collection(db,'pets'), where('ownerId','==', currentUser.uid));
+  unsubPets = onSnapshot(q, (snap)=>{
+    pets = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    pets.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+    if(!activePetId && pets.length) activePetId = pets[0].id;
+    renderSidebar();
+    renderMain();
+    pets.forEach(p=> subscribeVisits(p.id));
+  }, (err)=> toast("讀取寵物資料失敗:"+err.message));
+}
+async function createPet(data){
+  await addDoc(collection(db,'pets'), {
+    ownerId: currentUser.uid, ...data, createdAt: serverTimestamp()
+  });
+  toast("已新增寵物");
+}
+async function updatePet(petId, data){
+  await updateDoc(doc(db,'pets',petId), data);
+  toast("已更新寵物資料");
+}
+async function deletePet(petId){
+  await deleteDoc(doc(db,'pets',petId));
+  activePetId = pets.find(p=>p.id!==petId)?.id || null;
+  toast("已刪除寵物");
+}
+
+/* ============================================================
+   FIRESTORE: 回診紀錄
+   ============================================================ */
+function subscribeVisits(petId){
+  const q = query(collection(db,'visits'), where('petId','==',petId));
+  onSnapshot(q, (snap)=>{
+    const list = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    list.sort((a,b)=> new Date(b.date) - new Date(a.date));
+    visitsByPet[petId] = list;
+    renderMain();
+  }, (err)=> toast("讀取回診紀錄失敗:"+err.message));
+}
+async function createVisit(petId, data){
+  await addDoc(collection(db,'visits'), {
+    petId, ownerId: currentUser.uid, photoURLs:[], ...data, createdAt: serverTimestamp()
+  });
+  toast("已新增回診紀錄");
+}
+async function updateVisit(visitId, data){
+  await updateDoc(doc(db,'visits',visitId), data);
+  toast("已更新回診紀錄");
+}
+async function deleteVisit(petId, visitId){
+  await deleteDoc(doc(db,'visits',visitId));
+  toast("已刪除回診紀錄");
+  activeView = "overview";
+  renderMain();
+}
+
+/* ============================================================
+   STORAGE: 照片上傳
+   ============================================================ */
+async function uploadPhotoForVisit(visit, file){
+  const path = `photos/${currentUser.uid}/${visit.id}/${Date.now()}_${file.name}`;
+  const r = ref(storage, path);
+  await uploadBytes(r, file);
+  const url = await getDownloadURL(r);
+  await updateDoc(doc(db,'visits',visit.id), { photoURLs: arrayUnion(url) });
+  toast("照片已上傳");
+}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+function renderSidebar(){
+  const list = document.getElementById('petList');
+  list.innerHTML = "";
+  if(!pets.length){
+    list.appendChild(el('div','', '<div style="color:var(--ink-soft);font-size:13px;padding:8px;">尚未新增寵物</div>'));
+    return;
+  }
+  pets.forEach(p=>{
+    const chip = el('div', 'pet-chip' + (p.id===activePetId ? ' active':''));
+    chip.appendChild(el('div','dot'));
+    chip.appendChild(el('div','', p.name || "未命名"));
+    chip.addEventListener('click', ()=>{
+      activePetId = p.id; activeView="overview"; activeVisitId=null;
+      renderSidebar(); renderMain();
+    });
+    list.appendChild(chip);
+  });
+}
+document.getElementById('addPetBtn').addEventListener('click', ()=> openPetModal());
+
+/* ============================================================
+   MAIN RENDER ROUTER
+   ============================================================ */
+function renderMain(){
+  const main = document.getElementById('main');
+  main.innerHTML = "";
+  if(!pets.length){
+    main.appendChild(emptyState("還沒有寵物資料","新增第一隻寵物,開始記錄牠的健康吧","+ 新增寵物", ()=>openPetModal()));
+    return;
+  }
+  const pet = pets.find(p=>p.id===activePetId);
+  if(!pet){ activePetId = pets[0].id; return renderMain(); }
+
+  if(activeView === "visitDetail"){
+    renderVisitDetail(pet);
+  }else if(activeView === "trends"){
+    renderTrends(pet);
+  }else{
+    renderOverview(pet);
+  }
+}
+function emptyState(title, sub, btnLabel, onClick){
+  const e = el('div','empty-state');
+  e.appendChild(el('h3','',title));
+  e.appendChild(el('div','',sub));
+  if(btnLabel){
+    const b = el('button','btn btn-primary',btnLabel);
+    b.style.width='auto'; b.style.marginTop='16px';
+    b.addEventListener('click', onClick);
+    e.appendChild(b);
+  }
+  return e;
+}
+
+/* ---------- Overview: pet info + visit timeline ---------- */
+function renderOverview(pet){
+  const main = document.getElementById('main');
+  const top = el('div','topbar');
+  const left = el('div');
+  left.appendChild(el('h1','', pet.name || "未命名"));
+  const metaParts = [pet.species, pet.breed, pet.sex, pet.weight?`${pet.weight} kg`:null, pet.birthdate?("生日 "+pet.birthdate):null].filter(Boolean);
+  left.appendChild(el('div','meta', metaParts.join(' · ')));
+  top.appendChild(left);
+
+  const actions = el('div','actions');
+  const trendBtn = el('button','btn btn-line','📈 趨勢圖');
+  trendBtn.addEventListener('click', ()=>{ activeView='trends'; renderMain(); });
+  const editPetBtn = el('button','btn btn-line','編輯寵物');
+  editPetBtn.addEventListener('click', ()=> openPetModal(pet));
+  const addVisitBtn = el('button','btn btn-primary','+ 新增回診紀錄');
+  addVisitBtn.style.width='auto';
+  addVisitBtn.addEventListener('click', ()=> openVisitModal(pet));
+  actions.appendChild(trendBtn); actions.appendChild(editPetBtn); actions.appendChild(addVisitBtn);
+  top.appendChild(actions);
+  main.appendChild(top);
+
+  const visits = visitsByPet[pet.id] || [];
+  if(!visits.length){
+    main.appendChild(emptyState("還沒有回診紀錄","新增第一筆回診紀錄,記錄檢驗數值","+ 新增回診紀錄", ()=>openVisitModal(pet)));
+    return;
+  }
+  const tl = el('div','timeline');
+  visits.forEach(v=>{
+    const row = el('div','visit-row');
+    row.appendChild(el('div','vdate', fmtDate(v.date)));
+    row.appendChild(el('div','vclinic', [v.clinicName, v.vetName].filter(Boolean).join(' · ')));
+    const flags = el('div','vflags');
+    let highCt=0, lowCt=0;
+    (v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{
+      const f = flagFor(it.value, it.refLow, it.refHigh);
+      if(f==='high') highCt++; if(f==='low') lowCt++;
+    }));
+    if(highCt) flags.appendChild(el('span','flag-pill high', `${highCt} 項偏高`));
+    if(lowCt) flags.appendChild(el('span','flag-pill low', `${lowCt} 項偏低`));
+    if(v.photoURLs?.length) flags.appendChild(el('span','flag-pill', '📎 '+v.photoURLs.length+' 張照片'));
+    row.appendChild(flags);
+    row.addEventListener('click', ()=>{ activeVisitId=v.id; activeView='visitDetail'; renderMain(); });
+    tl.appendChild(row);
+  });
+  main.appendChild(tl);
+}
+
+/* ---------- Visit detail ---------- */
+function renderVisitDetail(pet){
+  const visits = visitsByPet[pet.id]||[];
+  const visit = visits.find(v=>v.id===activeVisitId);
+  const main = document.getElementById('main');
+  if(!visit){ activeView='overview'; return renderMain(); }
+
+  main.appendChild(crumb(pet.name, ()=>{activeView='overview'; renderMain();}));
+
+  const top = el('div','topbar');
+  const left = el('div');
+  left.appendChild(el('h1','', fmtDate(visit.date)+" 回診紀錄"));
+  left.appendChild(el('div','meta', [visit.clinicName, visit.vetName].filter(Boolean).join(' · ')));
+  top.appendChild(left);
+  const actions = el('div','actions');
+  const editBtn = el('button','btn btn-line','編輯');
+  editBtn.addEventListener('click', ()=> openVisitModal(pet, visit));
+  const delBtn = el('button','btn btn-danger-ghost','刪除');
+  delBtn.addEventListener('click', ()=>{ if(confirm('確定要刪除這筆回診紀錄嗎?')) deleteVisit(pet.id, visit.id); });
+  actions.appendChild(editBtn); actions.appendChild(delBtn);
+  top.appendChild(actions);
+  main.appendChild(top);
+
+  if(visit.notes){
+    const n = el('div','', `<strong>備註:</strong> ${escapeHtml(visit.notes)}`);
+    n.style.marginBottom='18px'; n.style.fontSize='14px'; n.style.color='var(--ink-soft)';
+    main.appendChild(n);
+  }
+
+  (visit.panels||[]).forEach(panel=>{
+    const block = el('div','panel-block');
+    block.appendChild(el('div','panel-head', panel.name));
+    (panel.items||[]).forEach(it=>{
+      block.appendChild(renderItemRow(it));
+    });
+    main.appendChild(block);
+  });
+
+  const photoSection = el('div','');
+  photoSection.appendChild(el('h3','', '檢驗單照片'));
+  const strip = el('div','photo-strip');
+  (visit.photoURLs||[]).forEach(url=>{
+    const img = el('img','photo-thumb');
+    img.src = url;
+    img.addEventListener('click', ()=> openLightbox(url));
+    strip.appendChild(img);
+  });
+  const uploadBox = el('div','upload-box', '📷 點此上傳照片');
+  const fileInput = document.createElement('input');
+  fileInput.type='file'; fileInput.accept='image/*'; fileInput.style.display='none';
+  fileInput.addEventListener('change', async (e)=>{
+    const f = e.target.files[0];
+    if(f) { uploadBox.textContent = "上傳中..."; await uploadPhotoForVisit(visit, f); uploadBox.textContent="📷 點此上傳照片"; }
+  });
+  uploadBox.addEventListener('click', ()=> fileInput.click());
+  strip.appendChild(uploadBox);
+  strip.appendChild(fileInput);
+  photoSection.appendChild(strip);
+  main.appendChild(photoSection);
+}
+function crumb(petName, onBack){
+  const c = el('div','crumb');
+  const b = document.createElement('button');
+  b.textContent = "← "+petName;
+  b.addEventListener('click', onBack);
+  c.appendChild(b);
+  return c;
+}
+function escapeHtml(s){
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+function renderItemRow(it){
+  const f = flagFor(it.value, it.refLow, it.refHigh);
+  const row = el('div','item-row');
+  row.appendChild(el('div','iname', it.name + (it.unit?` <span class="mono" style="color:var(--ink-soft);font-size:11px;">(${it.unit})</span>`:'')));
+  row.appendChild(el('div','ival'+(f?(' '+f):''), (it.value!==""&&it.value!=null) ? it.value : '—'));
+  row.appendChild(renderRangeBar(it.value, it.refLow, it.refHigh, f));
+  return row;
+}
+function renderRangeBar(value, low, high, flag){
+  const wrap = el('div','');
+  if(low==null || high==null || low==="" || high===""){
+    wrap.innerHTML = '<div style="font-size:11px;color:var(--ink-soft);">無參考值</div>';
+    return wrap;
+  }
+  low = parseFloat(low); high = parseFloat(high);
+  const span = (high-low) || 1;
+  const winLow = low - span*0.4, winHigh = high + span*0.4, winSpan = winHigh-winLow;
+  const normLeft = ((low-winLow)/winSpan)*100;
+  const normWidth = ((high-low)/winSpan)*100;
+  const bar = el('div','range-bar');
+  const zone = el('div','normal-zone');
+  zone.style.left = normLeft+'%'; zone.style.width = normWidth+'%';
+  bar.appendChild(zone);
+  if(value!=="" && value!=null && !isNaN(value)){
+    let pct = ((parseFloat(value)-winLow)/winSpan)*100;
+    pct = Math.max(0, Math.min(100, pct));
+    const marker = el('div','marker'+(flag?(' '+flag):''));
+    marker.style.left = pct+'%';
+    bar.appendChild(marker);
+  }
+  wrap.appendChild(bar);
+  const cap = el('div','range-caption', `<span>${low}</span><span>${high}</span>`);
+  wrap.appendChild(cap);
+  return wrap;
+}
+
+/* ---------- Trends ---------- */
+let chartInstance = null;
+function renderTrends(pet){
+  const main = document.getElementById('main');
+  main.appendChild(crumb(pet.name, ()=>{activeView='overview'; renderMain();}));
+  const top = el('div','topbar');
+  top.appendChild(el('h1','','數值趨勢'));
+  main.appendChild(top);
+
+  const visits = (visitsByPet[pet.id]||[]).slice().sort((a,b)=> new Date(a.date)-new Date(b.date));
+  const itemNames = new Set();
+  visits.forEach(v=>(v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{ if(it.name) itemNames.add(it.name); })));
+
+  if(!itemNames.size){
+    main.appendChild(emptyState("還沒有可繪製的數值","先新增回診紀錄並填入檢驗數值",null));
+    return;
+  }
+
+  const controls = el('div','trend-controls');
+  const select = document.createElement('select');
+  Array.from(itemNames).sort().forEach(name=>{
+    const opt = document.createElement('option'); opt.value=name; opt.textContent=name;
+    select.appendChild(opt);
+  });
+  controls.appendChild(select);
+  main.appendChild(controls);
+
+  const chartWrap = el('div','chart-wrap');
+  const canvas = document.createElement('canvas');
+  canvas.height = 110;
+  chartWrap.appendChild(canvas);
+  main.appendChild(chartWrap);
+
+  function draw(itemName){
+    const points = [];
+    let refLow=null, refHigh=null;
+    visits.forEach(v=>{
+      (v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{
+        if(it.name===itemName && it.value!=="" && it.value!=null && !isNaN(it.value)){
+          points.push({x: v.date, y: parseFloat(it.value)});
+          if(it.refLow!=null && it.refLow!=="") refLow = parseFloat(it.refLow);
+          if(it.refHigh!=null && it.refHigh!=="") refHigh = parseFloat(it.refHigh);
         }
+      }));
     });
+    if(chartInstance) chartInstance.destroy();
+    const pointColors = points.map(p=>{
+      if(refLow!=null && p.y<refLow) return '#3D6FC1';
+      if(refHigh!=null && p.y>refHigh) return '#C1453D';
+      return '#3F6B66';
+    });
+    const datasets = [{
+      label: itemName,
+      data: points,
+      borderColor:'#3F6B66',
+      backgroundColor:'#3F6B66',
+      pointBackgroundColor: pointColors,
+      pointRadius:5,
+      tension:0.25,
+      borderWidth:2,
+    }];
+    if(refLow!=null && refHigh!=null){
+      datasets.push({
+        label:'正常範圍上限', data: points.map(p=>({x:p.x,y:refHigh})),
+        borderColor:'rgba(63,107,102,0.25)', borderDash:[4,4], pointRadius:0, borderWidth:1, fill:'+1'
+      });
+      datasets.push({
+        label:'正常範圍下限', data: points.map(p=>({x:p.x,y:refLow})),
+        borderColor:'rgba(63,107,102,0.25)', borderDash:[4,4], pointRadius:0, borderWidth:1,
+        backgroundColor:'rgba(63,107,102,0.08)'
+      });
+    }
+    chartInstance = new Chart(canvas, {
+      type:'line',
+      data:{ datasets },
+      options:{
+        responsive:true,
+        plugins:{ legend:{ labels:{ filter:(item)=> !item.text.includes('範圍') } } },
+        scales:{
+          x:{ type:'time', time:{unit:'month'}, title:{display:false} },
+          y:{ title:{display:false} }
+        }
+      }
+    });
+  }
+  draw(select.value);
+  select.addEventListener('change', ()=> draw(select.value));
 }
 
-// 當網頁載入完畢時自動執行初始化
-window.onload = init;
-</script>
+/* ============================================================
+   LIGHTBOX
+   ============================================================ */
+function openLightbox(url){
+  const box = el('div',''); box.id='lightbox';
+  const img = document.createElement('img'); img.src=url;
+  box.appendChild(img);
+  box.addEventListener('click', ()=> box.remove());
+  document.body.appendChild(box);
+}
 
+/* ============================================================
+   MODAL: 新增/編輯寵物
+   ============================================================ */
+function openPetModal(pet){
+  const overlay = el('div','overlay');
+  const modal = el('div','modal');
+  modal.innerHTML = `
+    <h2>${pet ? '編輯寵物' : '新增寵物'}</h2>
+    <div class="row2">
+      <div class="field"><label>名字</label><input id="mPetName" value="${pet?.name||''}"></div>
+      <div class="field"><label>物種</label><input id="mPetSpecies" placeholder="犬 / 貓" value="${pet?.species||''}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>品種</label><input id="mPetBreed" value="${pet?.breed||''}"></div>
+      <div class="field"><label>性別</label><input id="mPetSex" placeholder="母/已結紮" value="${pet?.sex||''}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>生日</label><input id="mPetBirthdate" type="date" value="${pet?.birthdate||''}"></div>
+      <div class="field"><label>體重 (kg)</label><input id="mPetWeight" type="number" step="0.1" value="${pet?.weight||''}"></div>
+    </div>
+    <div class="modal-actions">
+      ${pet? '<button class="btn btn-danger-ghost" id="mDeletePet">刪除寵物</button>' : ''}
+      <button class="btn btn-line" id="mCancel">取消</button>
+      <button class="btn btn-primary" id="mSave" style="width:auto;">儲存</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) overlay.remove(); });
+  modal.querySelector('#mCancel').addEventListener('click', ()=> overlay.remove());
+  if(pet){
+    modal.querySelector('#mDeletePet').addEventListener('click', async ()=>{
+      if(confirm('確定要刪除這隻寵物與所有回診紀錄關聯嗎?(回診紀錄本身需另外清理)')){
+        await deletePet(pet.id); overlay.remove();
+      }
+    });
+  }
+  modal.querySelector('#mSave').addEventListener('click', async ()=>{
+    const data = {
+      name: modal.querySelector('#mPetName').value.trim(),
+      species: modal.querySelector('#mPetSpecies').value.trim(),
+      breed: modal.querySelector('#mPetBreed').value.trim(),
+      sex: modal.querySelector('#mPetSex').value.trim(),
+      birthdate: modal.querySelector('#mPetBirthdate').value,
+      weight: modal.querySelector('#mPetWeight').value,
+    };
+    if(!data.name){ toast("請輸入名字"); return; }
+    if(pet) await updatePet(pet.id, data);
+    else { await createPet(data); }
+    overlay.remove();
+  });
+}
+
+/* ============================================================
+   MODAL: 新增/編輯回診紀錄
+   ============================================================ */
+function openVisitModal(pet, visit){
+  const overlay = el('div','overlay');
+  const modal = el('div','modal');
+  modal.innerHTML = `
+    <h2>${visit? '編輯回診紀錄':'新增回診紀錄'}</h2>
+    <div class="row3">
+      <div class="field"><label>回診日期</label><input id="mDate" type="date" value="${visit?.date||new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>診所</label><input id="mClinic" value="${visit?.clinicName||''}"></div>
+      <div class="field"><label>醫師</label><input id="mVet" value="${visit?.vetName||''}"></div>
+    </div>
+    <div class="field"><label>備註</label><textarea id="mNotes">${visit?.notes||''}</textarea></div>
+    <h3 style="font-size:15px;margin:18px 0 6px;">檢驗項目</h3>
+    <div class="preset-row">
+      <span style="font-size:12px;color:var(--ink-soft);align-self:center;">快速套用範本:</span>
+      ${Object.keys(PRESETS).map(k=>`<button type="button" class="preset-chip" data-preset="${k}">${k}</button>`).join('')}
+      <button type="button" class="preset-chip" id="addBlankPanel">+ 自訂面板</button>
+    </div>
+    <div id="panelsEditor"></div>
+    <div class="modal-actions">
+      <button class="btn btn-line" id="mCancel">取消</button>
+      <button class="btn btn-primary" id="mSaveVisit" style="width:auto;">儲存回診紀錄</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) overlay.remove(); });
+  modal.querySelector('#mCancel').addEventListener('click', ()=> overlay.remove());
+
+  const panelsEditor = modal.querySelector('#panelsEditor');
+  function addPanel(name, items){
+    const block = el('div','panel-editor');
+    block.innerHTML = `
+      <div class="panel-editor-head">
+        <input class="panelName" placeholder="面板名稱(例如:CBC血液檢查)" value="${name||''}">
+        <button type="button" class="icon-btn removePanel" title="刪除面板">✕</button>
+      </div>
+      <div class="itemsList"></div>
+      <button type="button" class="preset-chip addItemRow">+ 新增檢驗項目</button>
+    `;
+    block.querySelector('.removePanel').addEventListener('click', ()=> block.remove());
+    const itemsList = block.querySelector('.itemsList');
+    function addItemRow(it){
+      const row = el('div','item-edit-row');
+      row.innerHTML = `
+        <input class="itName" placeholder="項目名稱" value="${it?.name||''}">
+        <input class="itValue" placeholder="數值" value="${it?.value??''}">
+        <input class="itUnit" placeholder="單位" value="${it?.unit||''}">
+        <input class="itLow" placeholder="參考下限" value="${it?.refLow??''}">
+        <input class="itHigh" placeholder="參考上限" value="${it?.refHigh??''}">
+        <button type="button" class="icon-btn removeItem">✕</button>
+      `;
+      row.querySelector('.removeItem').addEventListener('click', ()=> row.remove());
+      itemsList.appendChild(row);
+    }
+    block.querySelector('.addItemRow').addEventListener('click', ()=> addItemRow());
+    (items||[]).forEach(it=> addItemRow(it));
+    if(!items || !items.length) addItemRow();
+    panelsEditor.appendChild(block);
+  }
+
+  modal.querySelectorAll('[data-preset]').forEach(btn=>{
+    btn.addEventListener('click', ()=> addPanel(btn.dataset.preset, PRESETS[btn.dataset.preset]));
+  });
+  modal.querySelector('#addBlankPanel').addEventListener('click', ()=> addPanel('', []));
+
+  if(visit && visit.panels && visit.panels.length){
+    visit.panels.forEach(p=> addPanel(p.name, p.items));
+  }
+
+  modal.querySelector('#mSaveVisit').addEventListener('click', async ()=>{
+    const date = modal.querySelector('#mDate').value;
+    if(!date){ toast("請選擇回診日期"); return; }
+    const panels = [];
+    panelsEditor.querySelectorAll('.panel-editor').forEach(block=>{
+      const pname = block.querySelector('.panelName').value.trim();
+      const items = [];
+      block.querySelectorAll('.item-edit-row').forEach(row=>{
+        const name = row.querySelector('.itName').value.trim();
+        if(!name) return;
+        items.push({
+          name,
+          value: row.querySelector('.itValue').value.trim(),
+          unit: row.querySelector('.itUnit').value.trim(),
+          refLow: row.querySelector('.itLow').value.trim(),
+          refHigh: row.querySelector('.itHigh').value.trim(),
+        });
+      });
+      if(pname || items.length) panels.push({name: pname || '未命名面板', items});
+    });
+    const data = {
+      date,
+      clinicName: modal.querySelector('#mClinic').value.trim(),
+      vetName: modal.querySelector('#mVet').value.trim(),
+      notes: modal.querySelector('#mNotes').value.trim(),
+      panels,
+    };
+    if(visit) await updateVisit(visit.id, data);
+    else await createVisit(pet.id, data);
+    overlay.remove();
+  });
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+setAuthMode("login");
+bootAuthListener();
+</script>
 </body>
 </html>
