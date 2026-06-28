@@ -1062,39 +1062,41 @@ function renderTrends(pet){
       });
     }
 
-    chartInstance = new Chart(canvas, {
+        chartInstance = new Chart(canvas, {
       type:'line',
       data:{ 
-        labels: labels, // 使用有紀錄的日期標籤
+        labels: labels, 
         datasets 
       },
-      plugins: [ChartDataLabels], // 🌟 說明：啟用顯示數值外掛
+      plugins: [ChartDataLabels], 
       options:{
         responsive:true,
         layout: {
           padding: {
-            top: 24 // 留點頂部空間給上方數字，避免文字被切掉
+            top: 35,   // 🌟 再次加大上方留白空間，防止數字被切到
+            left: 10,
+            right: 10
           }
         },
         plugins:{ 
-          legend:{ labels:{ filter:(item)=> !item.text.includes('範圍') } },
-          // 🌟 設定點位上方顯示數值
+          // 🌟 徹底隱藏上方的圖例（Legend），這樣就不會跟數字打架、重疊了！
+          legend: { display: false },
+          
+          // 🌟 優化數據標籤設定
           datalabels: {
             align: 'top',
             anchor: 'end',
             offset: 4,
-            backgroundColor: 'rgba(255, 255, 255, 0.85)',
-            borderRadius: 4,
-            borderWidth: 1,
-            borderColor: 'var(--line)',
-            color: 'var(--ink)',
+            // 移除原本會導致空框的背景色與邊框設定，讓它純文字顯示
+            backgroundColor: null,
+            borderWidth: 0,
+            color: '#2B2B28', // 🌟 強制指定深灰色，不用 CSS 變數，確保手機上一定看得到字！
             font: {
               weight: '600',
-              family: 'IBM Plex Mono',
-              size: 11
+              family: 'IBM Plex Mono, sans-serif',
+              size: 12
             },
             formatter: (value, context) => {
-              // 只顯示主要數據點的數字，隱藏正常範圍線的數字
               if (context.datasetIndex !== 0) return null;
               return value;
             }
@@ -1102,24 +1104,17 @@ function renderTrends(pet){
         },
         scales:{
           x:{ 
-            type:'category', // 🌟 改為分類軸，這樣就只會顯示有紀錄點的日期
+            type:'category', 
             title:{display:false},
             grid: { display: false } 
           },
           y:{ 
             title:{display:false},
-            grace: '10%' // 讓 Y 軸頂部留一點空隙給數字
+            grace: '15%' // 🌟 提高 Y 軸頂部的緩衝比例，把折線往下壓，留空間給數字
           }
         }
       }
     });
-  } // 這是 draw() 結尾大括號
-
-  // 選擇選單切換時觸發重新繪圖的監聽器
-  select.addEventListener('change', (e) => draw(e.target.value));
-  // 預設進來繪製第一個項目
-  if(select.value) draw(select.value);
-}
 
 /* ============================================================
    LIGHTBOX
