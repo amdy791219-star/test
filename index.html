@@ -736,7 +736,7 @@ function renderOverview(pet){
   
   // 生日資訊附加顯示年齡
   const ageStr = pet.birthdate ? `${pet.birthdate}${getDetailedAge(pet.birthdate)}` : null;
-  const metaParts = [pet.species, pet.breed, pet.sex, pet.weight?`${pet.weight} kg`:null, pet.birthdate?("生日 "+ageStr):null].filter(Boolean);
+  const metaParts = [pet.species, pet.breed, pet.sex, (pet.weight && pet.weight !== "undefined" && pet.weight !== "") ? `${pet.weight} kg` : null, pet.birthdate ? ("生日 " + ageStr) : null].filter(Boolean);
   left.appendChild(el('div','meta', metaParts.join(' · ')));
   top.appendChild(left);
 
