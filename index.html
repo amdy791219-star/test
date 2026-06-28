@@ -1110,8 +1110,6 @@ function renderTrends(pet){
           },
           y:{ 
             title:{display:false},
-                      y:{ 
-            title:{display:false},
             grace: '15%' // 🌟 提高 Y 軸頂部的緩衝比例，把折線往下壓，留空間給數字
           }
         }
@@ -1122,11 +1120,6 @@ function renderTrends(pet){
   select.addEventListener('change', (e) => draw(e.target.value));
   if(select.value) draw(select.value);
 }
-
-/* ============================================================
-   LIGHTBOX
-   ============================================================ */
-function openLightbox(url){
 
 /* ============================================================
    LIGHTBOX
