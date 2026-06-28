@@ -138,20 +138,9 @@
   .daily-form-card {
     background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;
   }
-  
-  /* 🌟 新增：日常紀錄分類頁籤樣式 */
-  .daily-nav-tabs {
-    display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;
-  }
-  .daily-tab-btn {
-    background: none; border: none; padding: 6px 10px; font-size: 13px; font-weight: 500; color: var(--ink-soft); border-radius: 6px; white-space: nowrap; transition: all 0.15s;
-  }
-  .daily-tab-btn:hover { background: var(--paper); color: var(--ink); }
-  .daily-tab-btn.active { background: var(--teal-pale); color: var(--teal-dark); font-weight: 600; }
-  
   .daily-form-card h3 { margin:0 0 12px 0; font-size:16px; }
   .daily-list-box {
-    background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;max-height:420px;overflow-y:auto;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;max-height:360px;overflow-y:auto;
   }
   .daily-log-item {
     display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;
@@ -572,7 +561,7 @@ async function deleteVisit(petId, visitId){
 }
 
 /* ============================================================
-   FIRESTORE: 日常健康紀錄
+   FIRESTORE: 新增日常健康紀錄 
    ============================================================ */
 function subscribeDailyLogs(petId) {
   const q = query(
@@ -597,7 +586,7 @@ async function createDailyLog(petId, data) {
     ...data,
     createdAt: serverTimestamp()
   });
-  toast("已儲存日常紀錄");
+  toast("已儲存今日日常紀錄");
 }
 
 async function deleteDailyLog(logId) {
@@ -674,7 +663,7 @@ function emptyState(title, sub, btnLabel, onClick){
   return e;
 }
 
-/* ---------- Overview ---------- */
+/* ---------- Overview: 包含獨立切換的日常紀錄與回診時間軸 ---------- */
 function renderOverview(pet){
   const main = document.getElementById('main');
   const top = el('div','topbar');
@@ -696,124 +685,121 @@ function renderOverview(pet){
   top.appendChild(actions);
   main.appendChild(top);
 
-  // 🌟 [新功能區]：拆分獨立的日常紀錄登記與選單切換
+  // 🌟 [新功能區一]：日常生理與健康狀態登記欄位 (已修改為分開切換選單)
   main.appendChild(el('div', 'section-title', '📝 每日健康生活紀錄'));
+
+  // 1. 建立功能切換選單 (Dropdown Tabs)
+  const tabsControls = el('div', 'trend-controls');
+  tabsControls.style.marginBottom = '14px';
+  
+  const tabs = [
+    { id: 'water', label: '💧 每日飲水量', unit: 'ml', icon: '💧', placeholder: '例如: 250' },
+    { id: 'food', label: '🍖 每日飼料量', unit: 'g', icon: '🍖', placeholder: '例如: 80' },
+    { id: 'weight', label: '⚖️ 體重紀錄', unit: 'kg', icon: '⚖️', placeholder: '例如: 7.5' },
+    { id: 'breath', label: '🫁 呼吸次數', unit: '次/分', icon: '🫁', placeholder: '例如: 24' },
+    { id: 'notes', label: '⚠️ 特殊狀況', unit: '', icon: '⚠️', placeholder: '今天無異常狀況...' }
+  ];
+
+  let currentTab = 'water'; // 預設停在飲水量
+
+  const tabSelect = document.createElement('select');
+  tabSelect.style.minWidth = '160px';
+  tabs.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.label;
+    tabSelect.appendChild(opt);
+  });
+  tabsControls.appendChild(el('span', '', '選擇要記錄/檢視的項目：'));
+  tabsControls.appendChild(tabSelect);
+  main.appendChild(tabsControls);
+
+  // 2. 建立日誌區塊容器
   const dailyGrid = el('div', 'daily-log-grid');
-  
-  const formCard = el('div', 'daily-form-card');
-  formCard.innerHTML = `
-    <div class="daily-nav-tabs" id="dailyTabs">
-      <button type="button" class="daily-tab-btn active" data-tab="water">💧 飲水量</button>
-      <button type="button" class="daily-tab-btn" data-tab="food">🍖 飼料量</button>
-      <button type="button" class="daily-tab-btn" data-tab="weight">⚖️ 體重</button>
-      <button type="button" class="daily-tab-btn" data-tab="breath">🫁 呼吸次數</button>
-      <button type="button" class="daily-tab-btn" data-tab="notes">⚠️ 特殊狀況</button>
-    </div>
-
-    <h3>新增日常紀錄</h3>
-    <div class="field">
-      <label>記錄日期</label>
-      <input type="date" id="dDate" value="${new Date().toISOString().slice(0,10)}">
-    </div>
-    
-    <div class="daily-input-group" id="group-water">
-      <div class="field"><label>每日飲水量 (ml)</label><input type="number" id="dWater" placeholder="例如: 250"></div>
-    </div>
-    
-    <div class="daily-input-group hidden" id="group-food">
-      <div class="field"><label>每日飼料量 (g)</label><input type="number" id="dFood" placeholder="例如: 80"></div>
-    </div>
-    
-    <div class="daily-input-group hidden" id="group-weight">
-      <div class="field"><label>目前體重 (kg)</label><input type="number" step="0.01" id="dWeight" placeholder="例如: 7.5"></div>
-    </div>
-    
-    <div class="daily-input-group hidden" id="group-breath">
-      <div class="field"><label>每分鐘呼吸次數 (次/分)</label><input type="number" id="dBreath" placeholder="例如: 24"></div>
-    </div>
-    
-    <div class="daily-input-group hidden" id="group-notes">
-      <div class="field"><label>特殊狀況描述</label><textarea id="dNotes" placeholder="請描述嘔吐、精神差、拉肚子等異常狀況..."></textarea></div>
-    </div>
-    
-    <button class="btn btn-primary" id="saveDailyBtn" style="padding:8px; margin-top:12px;">儲存此項紀錄</button>
-  `;
-  
-  // 🌟 選單點擊切換事件
-  const tabBtns = formCard.querySelectorAll('.daily-tab-btn');
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('active'));
-      formCard.querySelectorAll('.daily-input-group').forEach(g => g.classList.add('hidden'));
-      
-      btn.classList.add('active');
-      formCard.querySelector(`#group-${btn.dataset.tab}`).classList.remove('hidden');
-    });
-  });
-  
-  formCard.querySelector('#saveDailyBtn').addEventListener('click', async () => {
-    const activeTab = formCard.querySelector('.daily-tab-btn.active').dataset.tab;
-    const date = formCard.querySelector('#dDate').value;
-    if(!date) { toast("請選擇日期"); return; }
-    
-    const logData = { date, water: "", food: "", weight: "", breath: "", notes: "" };
-    
-    // 只擷取當前選單項目的數值，保持資料庫結構的乾淨
-    if(activeTab === 'water') logData.water = formCard.querySelector('#dWater').value.trim();
-    if(activeTab === 'food') logData.food = formCard.querySelector('#dFood').value.trim();
-    if(activeTab === 'weight') logData.weight = formCard.querySelector('#dWeight').value.trim();
-    if(activeTab === 'breath') logData.breath = formCard.querySelector('#dBreath').value.trim();
-    if(activeTab === 'notes') logData.notes = formCard.querySelector('#dNotes').value.trim();
-    
-    // 檢查是否有填寫數值
-    if(activeTab !== 'notes' && !logData[activeTab]) { toast("請填入紀錄數值"); return; }
-    if(activeTab === 'notes' && !logData.notes) { toast("請填寫特殊狀況描述"); return; }
-
-    await createDailyLog(pet.id, logData);
-    
-    // 清空當前欄位
-    if(activeTab === 'water') formCard.querySelector('#dWater').value = "";
-    if(activeTab === 'food') formCard.querySelector('#dFood').value = "";
-    if(activeTab === 'weight') formCard.querySelector('#dWeight').value = "";
-    if(activeTab === 'breath') formCard.querySelector('#dBreath').value = "";
-    if(activeTab === 'notes') formCard.querySelector('#dNotes').value = "";
-  });
-
-  const listBox = el('div', 'daily-list-box');
-  const dLogs = dailyLogsByPet[pet.id] || [];
-  if(!dLogs.length) {
-    listBox.innerHTML = `<div style="color:var(--ink-soft); text-align:center; padding:40px 10px; font-size:13px;">尚未建立任何日常日誌</div>`;
-  } else {
-    dLogs.forEach(log => {
-      const row = el('div', 'daily-log-item');
-      const textParts = [];
-      if(log.water) textParts.push(`💧 飲水: ${log.water} ml`);
-      if(log.food) textParts.push(`🍖 飼料: ${log.food} g`);
-      if(log.weight) textParts.push(`⚖️ 體重: ${log.weight} kg`);
-      if(log.breath) textParts.push(`🫁 呼吸: ${log.breath} 次/分`);
-      if(log.notes) textParts.push(`⚠️ 狀況: ${log.notes}`);
-      
-      if(textParts.length === 0) return; // 略過空白紀錄
-      
-      row.innerHTML = `
-        <div>
-          <span class="d-date">${log.date}</span>
-          <div class="d-vals">${textParts.join('<br>')}</div>
-        </div>
-        <button class="icon-btn delLogBtn" style="font-size:12px; margin-left:6px; color:var(--ink-soft);">✕</button>
-      `;
-      row.querySelector('.delLogBtn').addEventListener('click', () => {
-        if(confirm("確定要刪除這條生活日誌嗎？")) deleteDailyLog(log.id);
-      });
-      listBox.appendChild(row);
-    });
-  }
-  
-  dailyGrid.appendChild(formCard);
-  dailyGrid.appendChild(listBox);
   main.appendChild(dailyGrid);
 
-  // 專業醫療回診歷史紀錄
+  // 3. 動態渲染 Form 與 List 的 function
+  function updateDailySection() {
+    dailyGrid.innerHTML = '';
+    const activeTabObj = tabs.find(t => t.id === currentTab);
+    const dLogs = dailyLogsByPet[pet.id] || [];
+
+    // A. 建立表單卡片
+    const formCard = el('div', 'daily-form-card');
+    let inputHtml = '';
+    if (activeTabObj.id === 'notes') {
+      inputHtml = `<div class="field"><label>${activeTabObj.label}</label><textarea id="dValue" placeholder="${activeTabObj.placeholder}"></textarea></div>`;
+    } else {
+      inputHtml = `<div class="field"><label>${activeTabObj.label} (${activeTabObj.unit})</label><input type="number" step="0.01" id="dValue" placeholder="${activeTabObj.placeholder}"></div>`;
+    }
+
+    formCard.innerHTML = `
+      <h3>新增 ${activeTabObj.label}</h3>
+      <div class="field"><label>日期</label><input type="date" id="dDate" value="${new Date().toISOString().slice(0,10)}"></div>
+      ${inputHtml}
+      <button class="btn btn-primary" id="saveDailyBtn" style="padding:8px; margin-top:5px;">儲存單項紀錄</button>
+    `;
+
+    // 儲存事件
+    formCard.querySelector('#saveDailyBtn').addEventListener('click', async () => {
+      const date = formCard.querySelector('#dDate').value;
+      const val = formCard.querySelector('#dValue').value.trim();
+      if (!date) { toast("請選擇日期"); return; }
+      if (!val) { toast("請輸入內容"); return; }
+
+      // 封裝成標準格式，僅攜帶當前選單的欄位數值
+      const logData = { date, water: "", food: "", weight: "", breath: "", notes: "" };
+      logData[currentTab] = val;
+
+      await createDailyLog(pet.id, logData);
+      formCard.querySelector('#dValue').value = "";
+    });
+
+    // B. 建立右側對應的歷史清單
+    const listBox = el('div', 'daily-list-box');
+    
+    // 篩選出含有當前選取項目（非空）的日誌
+    const filteredLogs = dLogs.filter(log => log[currentTab] !== undefined && log[currentTab] !== null && log[currentTab] !== "");
+
+    if (!filteredLogs.length) {
+      listBox.innerHTML = `<div style="color:var(--ink-soft); text-align:center; padding:40px 10px; font-size:13px;">尚未建立任何 ${activeTabObj.label} 紀錄</div>`;
+    } else {
+      filteredLogs.forEach(log => {
+        const row = el('div', 'daily-log-item');
+        let displayVal = '';
+        if (currentTab === 'notes') {
+          displayVal = `${activeTabObj.icon} 狀況: ${log.notes}`;
+        } else {
+          const fieldLabels = { water: '飲水', food: '飼料', weight: '體重', breath: '呼吸' };
+          displayVal = `${activeTabObj.icon} ${fieldLabels[currentTab]}: ${log[currentTab]} ${activeTabObj.unit}`;
+        }
+
+        row.innerHTML = `
+          <div>
+            <span class="d-date">${log.date}</span>
+            <div class="d-vals">${displayVal}</div>
+          </div>
+          <button class="icon-btn delLogBtn" style="font-size:12px; margin-left:6px; color:var(--ink-soft);">✕</button>
+        `;
+        row.querySelector('.delLogBtn').addEventListener('click', () => {
+          if (confirm("確定要刪除這條紀錄嗎？")) deleteDailyLog(log.id);
+        });
+        listBox.appendChild(row);
+      });
+    }
+
+    dailyGrid.appendChild(formCard);
+    dailyGrid.appendChild(listBox);
+  }
+
+  // 初始化首次渲染與下拉選單監聽
+  updateDailySection();
+  tabSelect.addEventListener('change', (e) => {
+    currentTab = e.target.value;
+    updateDailySection();
+  });
+
+  // 🌟 [原本功能區]：專業醫療回診歷史紀錄
   main.appendChild(el('div', 'section-title', '🏥 醫院回診與臨床檢驗紀錄'));
   const visits = visitsByPet[pet.id] || [];
   if(!visits.length){
@@ -1210,7 +1196,8 @@ function openVisitModal(pet, visit){
     panelsEditor.querySelectorAll('.panel-editor').forEach(block=>{
       const pname = block.querySelector('.panelName').value.trim();
       const items = [];
-      block.querySelectorAll('.item-edit-row').forEach(row=>{\n        const name = row.querySelector('.itName').value.trim();
+      block.querySelectorAll('.item-edit-row').forEach(row=>{
+        const name = row.querySelector('.itName').value.trim();
         if(!name) return;
         items.push({
           name,
