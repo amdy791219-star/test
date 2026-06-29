@@ -891,7 +891,7 @@ function renderOverview(pet){
         photoURLs: currentLogPhotoURLs
       };
 
-          try {
+      try {
         if (editingLogId) {
           await updateDailyLog(editingLogId, logData);
           editingLogId = null;
@@ -900,12 +900,6 @@ function renderOverview(pet){
         }
         currentLogPhotoURLs = [];
         updateDailySection();
-        
-        // --- 在這裡補上這兩行，鎖定下拉選單 ---
-        tabSelect.value = currentTab;
-        tabSelect.dispatchEvent(new Event('change'));
-        // ----------------------------------
-        
       } catch (err) {
         console.error("儲存失敗:", err);
         toast("儲存失敗，請檢查設定");
@@ -975,33 +969,8 @@ function renderOverview(pet){
         const urlsToShow = log.photoURLs || (log.photoURL ? [log.photoURL] : []);
         if(urlsToShow.length > 0){
           const stripPreview = el('div','photo-strip');
-          stripPreview.style.marginTop = '8px';
-          urlsToShow.forEach(url => {
-            const photoWrap = el('div','photo-thumb-wrap');
-            const thumb = el('img','photo-thumb');
-            thumb.src = url;
-            thumb.addEventListener('click', ()=> openLightbox(url));
-            photoWrap.appendChild(thumb);
-            stripPreview.appendChild(photoWrap);
-          });
-          row.appendChild(stripPreview);
-        }
-        listBox.appendChild(row);
-      });
-    }
+          strip
 
-    dailyGrid.appendChild(formCard);
-    dailyGrid.appendChild(listBox);
-    renderFormPhotos();
-  }
-
-  updateDailySection();
-  tabSelect.addEventListener('change', (e) => {
-    currentTab = e.target.value;
-    editingLogId = null;
-    currentLogPhotoURLs = [];
-    updateDailySection();
-  });
 
   // 🌟 臨床檢驗歷史紀錄
   main.appendChild(el('div', 'section-title', '🏥 醫院回診與臨床檢驗紀錄'));
