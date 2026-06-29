@@ -969,8 +969,36 @@ function renderOverview(pet){
         const urlsToShow = log.photoURLs || (log.photoURL ? [log.photoURL] : []);
         if(urlsToShow.length > 0){
           const stripPreview = el('div','photo-strip');
-          strip
+          stripPreview.style.marginTop = '8px';
+          urlsToShow.forEach(url => {
+            const photoWrap = el('div','photo-thumb-wrap');
+            const thumb = el('img','photo-thumb');
+            thumb.src = url;
+            thumb.addEventListener('click', ()=> openLightbox(url));
+            photoWrap.appendChild(thumb);
+            stripPreview.appendChild(photoWrap);
+          });
+          row.appendChild(stripPreview);
+        }
+        listBox.appendChild(row);
+      });
+    }
 
+    dailyGrid.appendChild(formCard);
+    dailyGrid.appendChild(listBox);
+    renderFormPhotos();
+
+    // 強制將最上方的下拉選單同步為目前的項目
+    tabSelect.value = currentTab;
+  }
+
+  updateDailySection();
+  tabSelect.addEventListener('change', (e) => {
+    currentTab = e.target.value;
+    editingLogId = null;
+    currentLogPhotoURLs = [];
+    updateDailySection();
+  });
 
   // 🌟 臨床檢驗歷史紀錄
   main.appendChild(el('div', 'section-title', '🏥 醫院回診與臨床檢驗紀錄'));
@@ -1296,7 +1324,6 @@ function openLightbox(url){
 function openPetModal(pet){
   const overlay = el('div','overlay');
   const modal = el('div','modal');
-  // 已將 體重 (kg) 的欄位整塊拿掉
   modal.innerHTML = `
     <h2>${pet ? '編輯寵物' : '新增寵物'}</h2>
     <div class="row2">
