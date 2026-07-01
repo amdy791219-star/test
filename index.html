@@ -196,6 +196,7 @@
     background:var(--card);border-radius:16px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;
     padding:28px 28px 24px;
   }
+  .modal.modal-wide{max-width:920px;}
   .modal h2{margin:0 0 18px;font-size:21px;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
@@ -210,6 +211,7 @@
   .preset-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px;}
   .preset-chip{font-size:12px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);}
   .preset-chip:hover{border-color:var(--teal);color:var(--teal-dark);}
+  .preset-chip.active{background:var(--teal);color:#fff;border-color:var(--teal);}
   .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;border-top:1px solid var(--line);padding-top:16px;}
 
   /* photos */
@@ -239,6 +241,23 @@
   .trend-controls select{width:auto;min-width:200px;}
   .chart-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;}
 
+  .multi-select-box{display:flex;flex-wrap:wrap;gap:8px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--card);max-width:100%;}
+  .multi-select-chip{font-size:12.5px;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;}
+  .multi-select-chip.active{background:var(--teal);border-color:var(--teal);color:#fff;}
+
+  .visit-filter-box{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+  .visit-filter-box input[type="text"]{flex:1;min-width:160px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);}
+  .visit-filter-box input[type="date"]{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);}
+
+  .reminder-banner{
+    display:flex;align-items:center;gap:10px;background:var(--coral-pale);color:var(--coral);
+    border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:18px;
+  }
+  .reminder-banner.upcoming{background:var(--teal-pale);color:var(--teal-dark);}
+
+  .export-checkbox-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;}
+  .export-checkbox-row:last-child{border-bottom:none;}
+
   @media (max-width: 760px){
     #app{flex-direction:column;}
     #sidebar{width:100%;flex-direction:row;overflow-x:auto;align-items:center;}
@@ -247,9 +266,17 @@
     .brand{display:none;}
     .sidebar-footer{display:none;}
     #main{padding:20px;}
-    .daily-log-grid { grid-template-columns:1fr; }
+    .daily-log-grid { display:flex; flex-direction:column; }
+    .daily-log-grid .daily-list-box{ order:1; }
+    .daily-log-grid .daily-form-card{ order:2; }
     .item-row{grid-template-columns:1fr 70px 140px;}
     .item-edit-row{grid-template-columns:1fr;}
+  }
+
+  @media print{
+    body * { visibility:hidden; }
+    #printArea, #printArea * { visibility:visible; }
+    #printArea { position:absolute; left:0; top:0; width:100%; }
   }
 </style>
 </head>
@@ -298,6 +325,7 @@
 </div>
 
 <div id="toastHost"></div>
+<div id="printArea" style="display:none;"></div>
 
 <script type="module">
 /* ============================================================
@@ -383,8 +411,12 @@ let unsubVisits = null;
 let unsubDailyLogs = null; 
 let authMode = "login"; 
 
-// 把日常紀錄目前選中的頁籤記憶變數移到最外層，使其不會因為重新渲染而被洗掉
+// 把日常紀錄目前選中的頁籤記憶變數移到最外層,使其不會因為重新渲染而被洗掉
 let currentTab = 'water'; 
+// 回診紀錄列表的搜尋/篩選關鍵字與日期範圍
+let visitFilterText = '';
+let visitFilterFrom = '';
+let visitFilterTo = '';
 
 /* ============================================================
    工具
@@ -397,10 +429,15 @@ function toast(msg){
   host.appendChild(el);
   setTimeout(()=>el.remove(), 2600);
 }
+// 統一的日期顯示格式:YY/MM/DD(取西元年後兩位),跨年度也能一眼看出年份
 function fmtDate(d){
   if(!d) return "";
   const dt = (d instanceof Date) ? d : new Date(d);
-  return dt.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+  if(isNaN(dt.getTime())) return "";
+  const yy = String(dt.getFullYear()).slice(-2);
+  const mm = String(dt.getMonth()+1).padStart(2,'0');
+  const dd = String(dt.getDate()).padStart(2,'0');
+  return `${yy}/${mm}/${dd}`;
 }
 function flagFor(value, low, high){
   if(low==null||high==null||value===""||value==null||isNaN(value)) return null;
@@ -416,7 +453,7 @@ function el(tag, cls, html){
   return e;
 }
 
-// 計算精確年齡：幾歲幾個月幾天
+// 計算精確年齡:幾歲幾個月幾天
 function getDetailedAge(birthdateStr) {
   if (!birthdateStr) return "";
   const birth = new Date(birthdateStr);
@@ -437,7 +474,7 @@ function getDetailedAge(birthdateStr) {
     years--;
   }
 
-  return `（${years}歲${months}個月${days}天）`;
+  return `(${years}歲${months}個月${days}天)`;
 }
 
 /* ============================================================
@@ -620,7 +657,6 @@ async function createDailyLog(petId, data) {
   await addDoc(collection(db, 'dailyLogs'), {
     petId,
     ownerId: currentUser.uid,
-    photoURLs: data.photoURLs || [],
     ...data,
     createdAt: serverTimestamp()
   });
@@ -730,6 +766,14 @@ function emptyState(title, sub, btnLabel, onClick){
   return e;
 }
 
+// 取得某隻寵物最新一筆體重紀錄(用於總覽 meta 區塊顯示)
+function getLatestWeight(petId){
+  const logs = (dailyLogsByPet[petId]||[]).filter(l => l.weight !== undefined && l.weight !== null && l.weight !== "");
+  if(!logs.length) return null;
+  // dailyLogsByPet 已經依日期新到舊排序
+  return logs[0];
+}
+
 /* ---------- Overview ---------- */
 function renderOverview(pet){
   const main = document.getElementById('main');
@@ -738,22 +782,40 @@ function renderOverview(pet){
   left.appendChild(el('h1','', pet.name || "未命名"));
   
   // 生日資訊附加顯示年齡
-  const ageStr = pet.birthdate ? `${pet.birthdate}${getDetailedAge(pet.birthdate)}` : null;
-  const metaParts = [pet.species, pet.breed, pet.sex, pet.birthdate ? ("生日 " + ageStr) : null].filter(Boolean);
+  const ageStr = pet.birthdate ? `${fmtDate(pet.birthdate)}${getDetailedAge(pet.birthdate)}` : null;
+  const latestWeight = getLatestWeight(pet.id);
+  const weightStr = latestWeight ? `目前體重 ${latestWeight.weight} kg(${fmtDate(latestWeight.date)})` : null;
+  const metaParts = [pet.species, pet.breed, pet.sex, pet.birthdate ? ("生日 " + ageStr) : null, weightStr].filter(Boolean);
   left.appendChild(el('div','meta', metaParts.join(' · ')));
   top.appendChild(left);
 
   const actions = el('div','actions');
   const trendBtn = el('button','btn btn-line','📈 數值趨勢圖');
   trendBtn.addEventListener('click', ()=>{ activeView='trends'; renderMain(); });
+  const exportBtn = el('button','btn btn-line','🖨️ 匯出比較頁面');
+  exportBtn.addEventListener('click', ()=> openExportModal(pet));
   const editPetBtn = el('button','btn btn-line','編輯寵物');
   editPetBtn.addEventListener('click', ()=> openPetModal(pet));
   const addVisitBtn = el('button','btn btn-primary','+ 新增回診紀錄');
   addVisitBtn.style.width='auto';
   addVisitBtn.addEventListener('click', ()=> openVisitModal(pet));
-  actions.appendChild(trendBtn); actions.appendChild(editPetBtn); actions.appendChild(addVisitBtn);
+  actions.appendChild(trendBtn); actions.appendChild(exportBtn); actions.appendChild(editPetBtn); actions.appendChild(addVisitBtn);
   top.appendChild(actions);
   main.appendChild(top);
+
+  // 🌟 下次回診提醒
+  const visitsAll = visitsByPet[pet.id] || [];
+  const upcoming = visitsAll
+    .filter(v => v.nextVisitDate)
+    .map(v => v.nextVisitDate)
+    .sort()[0];
+  if(upcoming){
+    const today = new Date().toISOString().slice(0,10);
+    const isOverdue = upcoming < today;
+    const banner = el('div', 'reminder-banner' + (isOverdue ? '' : ' upcoming'),
+      `${isOverdue ? '⚠️ 已超過建議回診日期:' : '📅 下次回診提醒:'} ${fmtDate(upcoming)}`);
+    main.appendChild(banner);
+  }
 
   // 🌟 日常生理健康紀錄
   main.appendChild(el('div', 'section-title', '📝 每日健康生活紀錄'));
@@ -780,7 +842,7 @@ function renderOverview(pet){
     opt.textContent = t.label;
     tabSelect.appendChild(opt);
   });
-  tabsControls.appendChild(el('span', '', '選擇要記錄/檢視的項目：'));
+  tabsControls.appendChild(el('span', '', '選擇要記錄/檢視的項目:'));
   tabsControls.appendChild(tabSelect);
   main.appendChild(tabsControls);
 
@@ -795,7 +857,6 @@ function renderOverview(pet){
     const formCard = el('div', 'daily-form-card');
     let inputFieldHtml = '';
     
-    // 特殊狀況與所有其他項目都加入多張相片管理區
     if (activeTabObj.id === 'notes') {
       inputFieldHtml = `<div class="field"><label>${activeTabObj.label}</label><textarea class="d-value-input" placeholder="${activeTabObj.placeholder}"></textarea></div>`;
     } else {
@@ -828,7 +889,7 @@ function renderOverview(pet){
     const saveBtn = formCard.querySelector('.btn-save-daily');
     const formTitle = formCard.querySelector('.form-title');
 
-    // 渲染表單內的相片預覽（支援單張刪除）
+    // 渲染表單內的相片預覽(支援單張刪除)
     function renderFormPhotos() {
       photoStrip.innerHTML = "";
       currentLogPhotoURLs.forEach((url, index) => {
@@ -857,13 +918,13 @@ function renderOverview(pet){
       try {
         const dataUrl = await compressImageToBase64(f);
         if (dataUrl.length > 700000) {
-          toast("這張照片壓縮後仍太大，請換一張較小的照片");
+          toast("這張照片壓縮後仍太大,請換一張較小的照片");
         } else {
           currentLogPhotoURLs.push(dataUrl);
           renderFormPhotos();
         }
       } catch (err) {
-        toast("照片處理失敗，請重試");
+        toast("照片處理失敗,請重試");
       }
       photoBox.textContent = "📷 點此附加照片";
       photoInput.value = "";
@@ -904,7 +965,7 @@ function renderOverview(pet){
         updateDailySection();
       } catch (err) {
         console.error("儲存失敗:", err);
-        toast("儲存失敗，請檢查設定");
+        toast("儲存失敗,請檢查設定");
       }
     });
 
@@ -926,6 +987,9 @@ function renderOverview(pet){
           displayVal = `${activeTabObj.icon} ${fieldLabels[currentTab]}: ${log[currentTab]} ${activeTabObj.unit}`;
         }
 
+        const urlsToShow = log.photoURLs || (log.photoURL ? [log.photoURL] : []);
+        const photoFlag = urlsToShow.length ? ` 📎${urlsToShow.length}` : '';
+
         const topContainer = el('div');
         topContainer.style.display = 'flex';
         topContainer.style.justifyContent = 'space-between';
@@ -934,8 +998,8 @@ function renderOverview(pet){
 
         topContainer.innerHTML = `
           <div>
-            <span class="d-date">${log.date}</span>
-            <div class="d-vals">${displayVal}</div>
+            <span class="d-date">${fmtDate(log.date)}</span>
+            <div class="d-vals">${displayVal}${photoFlag}</div>
           </div>
           <div style="display:flex; gap:10px; align-items:center;">
             <button type="button" class="btn-ghost editLogBtn" style="font-size:12px; padding:2px 6px; color:var(--teal); font-weight:600;">📝 編輯</button>
@@ -968,7 +1032,6 @@ function renderOverview(pet){
         row.appendChild(topContainer);
 
         // 列表內多圖預覽
-        const urlsToShow = log.photoURLs || (log.photoURL ? [log.photoURL] : []);
         if(urlsToShow.length > 0){
           const stripPreview = el('div','photo-strip');
           stripPreview.style.marginTop = '8px';
@@ -1004,30 +1067,80 @@ function renderOverview(pet){
 
   // 🌟 臨床檢驗歷史紀錄
   main.appendChild(el('div', 'section-title', '🏥 醫院回診與臨床檢驗紀錄'));
-  const visits = visitsByPet[pet.id] || [];
-  if(!visits.length){
-    main.appendChild(emptyState("還沒有回診紀錄","新增第一筆回診紀錄,記錄檢驗數值","+ 新增回診紀錄", ()=>openVisitModal(pet)));
-    return;
-  }
-  const tl = el('div','timeline');
-  visits.forEach(v=>{
-    const row = el('div','visit-row');
-    row.appendChild(el('div','vdate', fmtDate(v.date)));
-    row.appendChild(el('div','vclinic', [v.clinicName, v.vetName].filter(Boolean).join(' · ')));
-    const flags = el('div','vflags');
-    let highCt=0, lowCt=0;
-    (v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{
-      const f = flagFor(it.value, it.refLow, it.refHigh);
-      if(f==='high') highCt++; if(f==='low') lowCt++;
-    }));
-    if(highCt) flags.appendChild(el('span','flag-pill high', `${highCt} 項偏高`));
-    if(lowCt) flags.appendChild(el('span','flag-pill low', `${lowCt} 項偏低`));
-    if(v.photoURLs?.length) flags.appendChild(el('span','flag-pill', '📎 '+v.photoURLs.length+' 張照片'));
-    row.appendChild(flags);
-    row.addEventListener('click', ()=>{ activeVisitId=v.id; activeView='visitDetail'; renderMain(); });
-    tl.appendChild(row);
+
+  // 搜尋/篩選列
+  const filterBox = el('div', 'visit-filter-box');
+  filterBox.innerHTML = `
+    <input type="text" id="visitSearchInput" placeholder="搜尋診所、醫師或備註關鍵字..." value="${escapeHtml(visitFilterText)}">
+    <input type="date" id="visitFromInput" value="${visitFilterFrom}" title="起始日期">
+    <span style="color:var(--ink-soft);font-size:12px;">至</span>
+    <input type="date" id="visitToInput" value="${visitFilterTo}" title="結束日期">
+    <button type="button" class="btn btn-line" id="visitFilterClear" style="padding:8px 12px;width:auto;">清除篩選</button>
+  `;
+  main.appendChild(filterBox);
+  filterBox.querySelector('#visitSearchInput').addEventListener('input', (e)=>{
+    visitFilterText = e.target.value;
+    renderVisitTimeline();
   });
-  main.appendChild(tl);
+  filterBox.querySelector('#visitFromInput').addEventListener('change', (e)=>{
+    visitFilterFrom = e.target.value;
+    renderVisitTimeline();
+  });
+  filterBox.querySelector('#visitToInput').addEventListener('change', (e)=>{
+    visitFilterTo = e.target.value;
+    renderVisitTimeline();
+  });
+  filterBox.querySelector('#visitFilterClear').addEventListener('click', ()=>{
+    visitFilterText = ''; visitFilterFrom = ''; visitFilterTo = '';
+    renderOverview(pet);
+  });
+
+  const timelineHost = el('div','');
+  main.appendChild(timelineHost);
+
+  function renderVisitTimeline(){
+    timelineHost.innerHTML = '';
+    const visits = visitsByPet[pet.id] || [];
+    if(!visits.length){
+      timelineHost.appendChild(emptyState("還沒有回診紀錄","新增第一筆回診紀錄,記錄檢驗數值","+ 新增回診紀錄", ()=>openVisitModal(pet)));
+      return;
+    }
+    const kw = visitFilterText.trim().toLowerCase();
+    const filtered = visits.filter(v=>{
+      if(visitFilterFrom && v.date < visitFilterFrom) return false;
+      if(visitFilterTo && v.date > visitFilterTo) return false;
+      if(kw){
+        const hay = [v.clinicName, v.vetName, v.notes].filter(Boolean).join(' ').toLowerCase();
+        if(!hay.includes(kw)) return false;
+      }
+      return true;
+    });
+    if(!filtered.length){
+      timelineHost.appendChild(emptyState("沒有符合條件的回診紀錄","試試調整搜尋關鍵字或日期範圍", null));
+      return;
+    }
+    const tl = el('div','timeline');
+    filtered.forEach(v=>{
+      const row = el('div','visit-row');
+      row.appendChild(el('div','vdate', fmtDate(v.date)));
+      row.appendChild(el('div','vclinic', [v.clinicName, v.vetName].filter(Boolean).join(' · ')));
+      const flags = el('div','vflags');
+      let highCt=0, lowCt=0;
+      (v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{
+        const f = flagFor(it.value, it.refLow, it.refHigh);
+        if(f==='high') highCt++; if(f==='low') lowCt++;
+      }));
+      if(highCt) flags.appendChild(el('span','flag-pill high', `${highCt} 項偏高`));
+      if(lowCt) flags.appendChild(el('span','flag-pill low', `${lowCt} 項偏低`));
+      if(v.photoURLs?.length) flags.appendChild(el('span','flag-pill', '📎 '+v.photoURLs.length+' 張照片'));
+      if(v.nextVisitDate) flags.appendChild(el('span','flag-pill', '📅 下次回診 '+fmtDate(v.nextVisitDate)));
+      row.appendChild(flags);
+      row.addEventListener('click', ()=>{ activeVisitId=v.id; activeView='visitDetail'; renderMain(); });
+      tl.appendChild(row);
+    });
+    timelineHost.appendChild(tl);
+  }
+  renderVisitTimeline();
 }
 
 /* ---------- Visit detail ---------- */
@@ -1052,6 +1165,10 @@ function renderVisitDetail(pet){
   actions.appendChild(editBtn); actions.appendChild(delBtn);
   top.appendChild(actions);
   main.appendChild(top);
+
+  if(visit.nextVisitDate){
+    main.appendChild(el('div','reminder-banner upcoming', `📅 下次建議回診日期:${fmtDate(visit.nextVisitDate)}`));
+  }
 
   if(visit.notes){
     const n = el('div','', `<strong>備註:</strong> ${escapeHtml(visit.notes)}`);
@@ -1086,12 +1203,18 @@ function renderVisitDetail(pet){
     wrap.appendChild(delBtn);
     strip.appendChild(wrap);
   });
-  const uploadBox = el('div','upload-box', '📷 點此上傳照片');
+  const uploadBox = el('div','upload-box', '📷 點此附加照片(可多張)');
   const fileInput = document.createElement('input');
-  fileInput.type='file'; fileInput.accept='image/*'; fileInput.style.display='none';
+  fileInput.type='file'; fileInput.accept='image/*'; fileInput.multiple = true; fileInput.style.display='none';
   fileInput.addEventListener('change', async (e)=>{
-    const f = e.target.files[0];
-    if(f) { uploadBox.textContent = "處理中..."; await uploadPhotoForVisit(visit, f); uploadBox.textContent="📷 點此上傳照片"; }
+    const files = Array.from(e.target.files || []);
+    if(!files.length) return;
+    uploadBox.textContent = "處理中...";
+    for(const f of files){
+      await uploadPhotoForVisit(visit, f);
+    }
+    uploadBox.textContent="📷 點此附加照片(可多張)";
+    fileInput.value = "";
   });
   uploadBox.addEventListener('click', ()=> fileInput.click());
   strip.appendChild(uploadBox);
@@ -1108,7 +1231,7 @@ function crumb(petName, onBack){
   return c;
 }
 function escapeHtml(s){
-  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML;
 }
 function renderItemRow(it){
   const f = flagFor(it.value, it.refLow, it.refHigh);
@@ -1146,8 +1269,61 @@ function renderRangeBar(value, low, high, flag){
   return wrap;
 }
 
-/* ---------- Trends ---------- */
+/* ============================================================
+   取得某寵物所有可選的趨勢項目清單(共用於趨勢圖與匯出功能)
+   ============================================================ */
+function buildTrendItemList(pet){
+  const vSorted = (visitsByPet[pet.id]||[]).slice().sort((a,b)=> new Date(a.date)-new Date(b.date));
+  const dSorted = (dailyLogsByPet[pet.id]||[]).slice().sort((a,b)=> new Date(a.date)-new Date(b.date));
+  const itemNames = [];
+  itemNames.push("💧 日常: 每日飲水量 (ml)");
+  itemNames.push("🍖 日常: 每日飼料量 (g)");
+  itemNames.push("⚖️ 日常: 目前體重 (kg)");
+  itemNames.push("🫁 日常: 每分鐘呼吸次數");
+  const seen = new Set(itemNames);
+  vSorted.forEach(v=>(v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{
+    if(it.name){
+      const label = "🩸 臨床: "+it.name;
+      if(!seen.has(label)){ seen.add(label); itemNames.push(label); }
+    }
+  })));
+  return { itemNames, vSorted, dSorted };
+}
+function getSeriesForItem(itemName, vSorted, dSorted){
+  const points = [];
+  let refLow=null, refHigh=null;
+  if(itemName.includes("日常: ")) {
+    const fieldMap = {
+      "💧 日常: 每日飲水量 (ml)": "water",
+      "🍖 日常: 每日飼料量 (g)": "food",
+      "⚖️ 日常: 目前體重 (kg)": "weight",
+      "🫁 日常: 每分鐘呼吸次數": "breath"
+    };
+    const key = fieldMap[itemName];
+    dSorted.forEach(log => {
+      if(log[key] !== "" && log[key] != null && !isNaN(parseFloat(log[key]))) {
+        points.push({x: log.date, y: parseFloat(log[key])});
+      }
+    });
+  } else {
+    const pureName = itemName.replace("🩸 臨床: ", "");
+    vSorted.forEach(v=>{
+      (v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{
+        if(it.name===pureName && it.value!=="" && it.value!=null && !isNaN(parseFloat(it.value))){
+          points.push({x: v.date, y: parseFloat(it.value)});
+          if(it.refLow!=null && it.refLow!=="") refLow = parseFloat(it.refLow);
+          if(it.refHigh!=null && it.refHigh!=="") refHigh = parseFloat(it.refHigh);
+        }
+      }));
+    });
+  }
+  points.sort((a, b) => new Date(a.x) - new Date(b.x));
+  return { points, refLow, refHigh };
+}
+
+/* ---------- Trends(支援多選同時疊圖比較) ---------- */
 let chartInstance = null;
+const TREND_COLORS = ['#3F6B66','#C1453D','#3D6FC1','#B8860B','#7B5EA7','#1F7A5C'];
 function renderTrends(pet){
   const main = document.getElementById('main');
   main.appendChild(crumb(pet.name, ()=>{activeView='overview'; renderMain();}));
@@ -1155,158 +1331,125 @@ function renderTrends(pet){
   top.appendChild(el('h1','','數據趨勢追蹤'));
   main.appendChild(top);
 
-  const vSorted = (visitsByPet[pet.id]||[]).slice().sort((a,b)=> new Date(a.date)-new Date(b.date));
-  const dSorted = (dailyLogsByPet[pet.id]||[]).slice().sort((a,b)=> new Date(a.date)-new Date(b.date));
+  const { itemNames, vSorted, dSorted } = buildTrendItemList(pet);
 
-  const itemNames = new Set();
-  itemNames.add("💧 日常: 每日飲水量 (ml)");
-  itemNames.add("🍖 日常: 每日飼料量 (g)");
-  itemNames.add("⚖️ 日常: 目前體重 (kg)");
-  itemNames.add("🫁 日常: 每分鐘呼吸次數");
-  
-  vSorted.forEach(v=>(v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{ if(it.name) itemNames.add("🩸 臨床: "+it.name); })));
+  if(!itemNames.length){
+    main.appendChild(emptyState("還沒有可繪製的數值","先新增回診紀錄或日常紀錄並填入數值", null));
+    return;
+  }
 
-  const controls = el('div','trend-controls');
-  const select = document.createElement('select');
-  Array.from(itemNames).forEach(name=>{
-    const opt = document.createElement('option'); opt.value=name; opt.textContent=name;
-    select.appendChild(opt);
+  let selectedItems = [itemNames[0]];
+
+  const hint = el('div','', '可複選多個項目同時比較(例如肌酸酐 vs 血尿素氮):');
+  hint.style.fontSize = '13px'; hint.style.color = 'var(--ink-soft)'; hint.style.marginBottom = '8px';
+  main.appendChild(hint);
+
+  const chipBox = el('div','multi-select-box');
+  chipBox.style.marginBottom = '18px';
+  itemNames.forEach(name=>{
+    const chip = el('div','multi-select-chip'+(selectedItems.includes(name)?' active':''), name);
+    chip.addEventListener('click', ()=>{
+      if(selectedItems.includes(name)){
+        if(selectedItems.length > 1) selectedItems = selectedItems.filter(n=>n!==name);
+      } else {
+        if(selectedItems.length >= TREND_COLORS.length){
+          toast(`最多同時比較 ${TREND_COLORS.length} 個項目`);
+          return;
+        }
+        selectedItems.push(name);
+      }
+      Array.from(chipBox.children).forEach(c=>{
+        c.classList.toggle('active', selectedItems.includes(c.textContent));
+      });
+      draw();
+    });
+    chipBox.appendChild(chip);
   });
-  controls.appendChild(select);
-  main.appendChild(controls);
+  main.appendChild(chipBox);
 
   const chartWrap = el('div','chart-wrap');
   const canvas = document.createElement('canvas');
-  canvas.height = 110;
+  canvas.height = 120;
   chartWrap.appendChild(canvas);
   main.appendChild(chartWrap);
 
-  function draw(itemName){
-    const points = [];
-    let refLow=null, refHigh=null;
-    
-    if(itemName.includes("日常: ")) {
-      const fieldMap = {
-        "💧 日常: 每日飲水量 (ml)": "water",
-        "🍖 日常: 每日飼料量 (g)": "food",
-        "⚖️ 日常: 目前體重 (kg)": "weight",
-        "🫁 日常: 每分鐘呼吸次數": "breath"
-      };
-      const key = fieldMap[itemName];
-      dSorted.forEach(log => {
-        if(log[key] !== "" && log[key] != null && !isNaN(parseFloat(log[key]))) {
-          points.push({x: log.date, y: parseFloat(log[key])});
-        }
-      });
-    } else {
-      const pureName = itemName.replace("🩸 臨床: ", "");
-      vSorted.forEach(v=>{
-        (v.panels||[]).forEach(p=>(p.items||[]).forEach(it=>{
-          if(it.name===pureName && it.value!=="" && it.value!=null && !isNaN(parseFloat(it.value))){
-            points.push({x: v.date, y: parseFloat(it.value)});
-            if(it.refLow!=null && it.refLow!=="") refLow = parseFloat(it.refLow);
-            if(it.refHigh!=null && it.refHigh!=="") refHigh = parseFloat(it.refHigh);
-          }
-        }));
-      });
-    }
-
+  function draw(){
     if(chartInstance) chartInstance.destroy();
-    
-    if(!points.length) {
-      toast("目前該項目尚無足夠的數值產生圖表。");
+
+    // 收集所有選中項目的日期聯集,作為 X 軸 category
+    const allDatesSet = new Set();
+    const seriesData = selectedItems.map(name=>{
+      const { points, refLow, refHigh } = getSeriesForItem(name, vSorted, dSorted);
+      points.forEach(p=> allDatesSet.add(p.x));
+      return { name, points, refLow, refHigh };
+    });
+    const allDates = Array.from(allDatesSet).sort((a,b)=> new Date(a)-new Date(b));
+
+    if(!allDates.length){
+      toast("目前選擇的項目尚無足夠的數值產生圖表。");
       return;
     }
 
-    points.sort((a, b) => new Date(a.x) - new Date(b.x));
+    const labels = allDates.map(d => fmtDate(d));
 
-    const labels = points.map(p => {
-      const d = new Date(p.x);
-      return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-    });
-
-    const pointColors = points.map(p=>{
-      if(refLow!=null && p.y<refLow) return '#3D6FC1';
-      if(refHigh!=null && p.y>refHigh) return '#C1453D';
-      return '#3F6B66';
-    });
-
-    const datasets = [{
-      label: itemName,
-      data: points.map(p => p.y),
-      borderColor:'#3F6B66',
-      backgroundColor:'#3F6B66',
-      pointBackgroundColor: pointColors,
-      pointRadius:5,
-      tension:0.25,
-      borderWidth:2,
-    }];
-
-    if(refLow!=null && refHigh!=null){
+    const datasets = [];
+    seriesData.forEach((s, idx)=>{
+      const color = TREND_COLORS[idx % TREND_COLORS.length];
+      const valueByDate = {};
+      s.points.forEach(p=> valueByDate[p.x] = p.y);
+      const dataArr = allDates.map(d=> (d in valueByDate) ? valueByDate[d] : null);
       datasets.push({
-        label:'正常範圍上限', data: points.map(()=>refHigh),
-        borderColor:'rgba(63,107,102,0.25)', borderDash:[4,4], pointRadius:0, borderWidth:1, fill:'+1'
+        label: s.name,
+        data: dataArr,
+        borderColor: color,
+        backgroundColor: color,
+        pointRadius: 5,
+        tension: 0.25,
+        borderWidth: 2,
+        spanGaps: true,
       });
-      datasets.push({
-        label:'正常範圍下限', data: points.map(()=>refLow),
-        borderColor:'rgba(63,107,102,0.25)', borderDash:[4,4], pointRadius:0, borderWidth:1,
-        backgroundColor:'rgba(63,107,102,0.08)'
-      });
-    }
+      if(s.refLow!=null && s.refHigh!=null && selectedItems.length===1){
+        datasets.push({
+          label: name+'-正常範圍上限', data: allDates.map(()=>s.refHigh),
+          borderColor:'rgba(63,107,102,0.25)', borderDash:[4,4], pointRadius:0, borderWidth:1, fill:'+1'
+        });
+        datasets.push({
+          label: name+'-正常範圍下限', data: allDates.map(()=>s.refLow),
+          borderColor:'rgba(63,107,102,0.25)', borderDash:[4,4], pointRadius:0, borderWidth:1,
+          backgroundColor:'rgba(63,107,102,0.08)'
+        });
+      }
+    });
 
     chartInstance = new Chart(canvas, {
       type:'line',
-      data:{ 
-        labels: labels, 
-        datasets 
-      },
-      plugins: [ChartDataLabels], 
+      data:{ labels, datasets },
+      plugins: [ChartDataLabels],
       options:{
         responsive:true,
-        layout: {
-          padding: {
-            top: 35,
-            left: 10,
-            right: 10
-          }
-        },
-        plugins:{ 
-          legend: { display: false },
-          datalabels: {
-            align: 'top',
-            anchor: 'end',
-            offset: 4,
-            backgroundColor: null,
-            borderWidth: 0,
-            color: '#2B2B28',
-            font: {
-              weight: '600',
-              family: 'IBM Plex Mono, sans-serif',
-              size: 12
-            },
-            formatter: (value, context) => {
-              if (context.datasetIndex !== 0) return null;
+        layout:{ padding:{ top:35, left:10, right:10 } },
+        plugins:{
+          legend:{ display: selectedItems.length > 1, labels:{ filter:(item)=> !item.text.includes('範圍') } },
+          datalabels:{
+            align:'top', anchor:'end', offset:4, backgroundColor:null, borderWidth:0,
+            color:'#2B2B28',
+            font:{ weight:'600', family:'IBM Plex Mono, sans-serif', size: selectedItems.length>1 ? 10 : 12 },
+            formatter:(value, context)=>{
+              if(value==null) return null;
+              if(context.dataset.label && context.dataset.label.includes('範圍')) return null;
               return value;
             }
           }
         },
         scales:{
-          x:{ 
-            type:'category', 
-            title:{display:false},
-            grid: { display: false } 
-          },
-          y:{ 
-            title:{display:false},
-            grace: '15%'
-          }
+          x:{ type:'category', title:{display:false}, grid:{ display:false } },
+          y:{ title:{display:false}, grace:'15%' }
         }
       }
     });
   }
 
-  select.addEventListener('change', (e) => draw(e.target.value));
-  if(select.value) draw(select.value);
+  draw();
 }
 
 /* ============================================================
@@ -1372,7 +1515,7 @@ function openPetModal(pet){
 }
 
 /* ============================================================
-   MODAL: 新增/編輯回診紀錄 (加入 OCR 智慧文字解析功能)
+   MODAL: 新增/編輯回診紀錄 (加入 OCR 智慧文字解析功能 + 下次回診日期)
    ============================================================ */
 function openVisitModal(pet, visit){
   const overlay = el('div','overlay');
@@ -1383,6 +1526,9 @@ function openVisitModal(pet, visit){
       <div class="field"><label>回診日期</label><input id="mDate" type="date" value="${visit?.date||new Date().toISOString().slice(0,10)}"></div>
       <div class="field"><label>診所</label><input id="mClinic" value="${visit?.clinicName||''}"></div>
       <div class="field"><label>醫師</label><input id="mVet" value="${visit?.vetName||''}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>下次回診日期(選填,將顯示提醒)</label><input id="mNextVisit" type="date" value="${visit?.nextVisitDate||''}"></div>
     </div>
     <div class="field"><label>備註</label><textarea id="mNotes">${visit?.notes||''}</textarea></div>
     
@@ -1594,6 +1740,7 @@ function openVisitModal(pet, visit){
       date,
       clinicName: modal.querySelector('#mClinic').value.trim(),
       vetName: modal.querySelector('#mVet').value.trim(),
+      nextVisitDate: modal.querySelector('#mNextVisit').value || "",
       notes: modal.querySelector('#mNotes').value.trim(),
       panels,
     };
@@ -1601,6 +1748,157 @@ function openVisitModal(pet, visit){
     else await createVisit(pet.id, data);
     overlay.remove();
   });
+}
+
+/* ============================================================
+   MODAL: 匯出資料比較頁面(可勾選回診紀錄/日常紀錄項目,產生含圖表的列印頁)
+   ============================================================ */
+function openExportModal(pet){
+  const visits = visitsByPet[pet.id] || [];
+  const { itemNames, vSorted, dSorted } = buildTrendItemList(pet);
+
+  const overlay = el('div','overlay');
+  const modal = el('div','modal modal-wide');
+  modal.innerHTML = `
+    <h2>🖨️ 匯出資料比較頁面</h2>
+    <p style="font-size:13px;color:var(--ink-soft);margin-top:-10px;">勾選想要包含的回診紀錄與趨勢項目,將產生一份適合列印或交給獸醫看的整理頁面。</p>
+    <h3 style="font-size:15px;margin:16px 0 8px;">選擇要包含的回診紀錄</h3>
+    <div class="daily-list-box" id="exportVisitList" style="max-height:200px;"></div>
+    <h3 style="font-size:15px;margin:16px 0 8px;">選擇要包含的趨勢圖表項目</h3>
+    <div class="multi-select-box" id="exportItemList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-line" id="mCancel">取消</button>
+      <button class="btn btn-primary" id="mGenerateExport" style="width:auto;">產生比較頁面</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) overlay.remove(); });
+  modal.querySelector('#mCancel').addEventListener('click', ()=> overlay.remove());
+
+  const visitListBox = modal.querySelector('#exportVisitList');
+  if(!visits.length){
+    visitListBox.innerHTML = '<div style="color:var(--ink-soft);font-size:13px;padding:8px;">尚無回診紀錄</div>';
+  } else {
+    visits.forEach(v=>{
+      const row = el('div','export-checkbox-row');
+      row.innerHTML = `
+        <input type="checkbox" class="exportVisitCheck" data-id="${v.id}" checked>
+        <span>${fmtDate(v.date)} ${[v.clinicName, v.vetName].filter(Boolean).join(' · ')}</span>
+      `;
+      visitListBox.appendChild(row);
+    });
+  }
+
+  const itemListBox = modal.querySelector('#exportItemList');
+  let selectedExportItems = [];
+  itemNames.forEach(name=>{
+    const chip = el('div','multi-select-chip', name);
+    chip.addEventListener('click', ()=>{
+      if(selectedExportItems.includes(name)){
+        selectedExportItems = selectedExportItems.filter(n=>n!==name);
+      } else {
+        selectedExportItems.push(name);
+      }
+      chip.classList.toggle('active');
+    });
+    itemListBox.appendChild(chip);
+  });
+
+  modal.querySelector('#mGenerateExport').addEventListener('click', ()=>{
+    const checkedVisitIds = Array.from(modal.querySelectorAll('.exportVisitCheck:checked')).map(c=>c.dataset.id);
+    const chosenVisits = visits.filter(v=> checkedVisitIds.includes(v.id)).sort((a,b)=> new Date(a.date)-new Date(b.date));
+    if(!chosenVisits.length && !selectedExportItems.length){
+      toast("請至少選擇一筆回診紀錄或一個趨勢項目");
+      return;
+    }
+    generateExportPage(pet, chosenVisits, selectedExportItems, vSorted, dSorted);
+    overlay.remove();
+  });
+}
+
+function generateExportPage(pet, chosenVisits, selectedExportItems, vSorted, dSorted){
+  const win = window.open('', '_blank');
+  if(!win){ toast("瀏覽器封鎖了新視窗,請允許彈出視窗後再試一次"); return; }
+
+  let bodyHtml = `
+    <h1 style="font-family:Georgia,serif;margin-bottom:4px;">${escapeHtml(pet.name||'')} 健康紀錄比較</h1>
+    <div style="color:#666;font-size:13px;margin-bottom:24px;">
+      ${[pet.species, pet.breed, pet.sex, pet.birthdate?('生日 '+fmtDate(pet.birthdate)+getDetailedAge(pet.birthdate)):null].filter(Boolean).join(' · ')}
+      <br>產生時間:${fmtDate(new Date().toISOString().slice(0,10))}
+    </div>
+  `;
+
+  if(selectedExportItems.length){
+    bodyHtml += `<h2 style="font-family:Georgia,serif;border-bottom:2px solid #3F6B66;padding-bottom:6px;">數值趨勢比較</h2>`;
+    selectedExportItems.forEach((name, idx)=>{
+      bodyHtml += `<canvas id="exportChart${idx}" width="800" height="300" style="margin-bottom:24px;"></canvas>`;
+    });
+  }
+
+  if(chosenVisits.length){
+    bodyHtml += `<h2 style="font-family:Georgia,serif;border-bottom:2px solid #3F6B66;padding-bottom:6px;margin-top:24px;">回診紀錄明細</h2>`;
+    chosenVisits.forEach(v=>{
+      bodyHtml += `<div style="margin-bottom:18px;page-break-inside:avoid;">
+        <h3 style="margin-bottom:4px;">${fmtDate(v.date)} ${escapeHtml([v.clinicName, v.vetName].filter(Boolean).join(' · '))}</h3>`;
+      if(v.notes) bodyHtml += `<div style="font-size:13px;color:#666;margin-bottom:6px;">備註:${escapeHtml(v.notes)}</div>`;
+      (v.panels||[]).forEach(panel=>{
+        bodyHtml += `<table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:13px;">
+          <thead><tr style="background:#EFEBDC;"><th style="text-align:left;padding:6px;border:1px solid #ddd;">${escapeHtml(panel.name)}</th><th style="text-align:right;padding:6px;border:1px solid #ddd;">數值</th><th style="text-align:right;padding:6px;border:1px solid #ddd;">參考範圍</th></tr></thead><tbody>`;
+        (panel.items||[]).forEach(it=>{
+          const f = flagFor(it.value, it.refLow, it.refHigh);
+          const color = f==='high' ? '#C1453D' : (f==='low' ? '#3D6FC1' : '#222');
+          bodyHtml += `<tr>
+            <td style="padding:6px;border:1px solid #ddd;">${escapeHtml(it.name)}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right;color:${color};font-weight:600;">${escapeHtml(String(it.value||'—'))} ${escapeHtml(it.unit||'')}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right;color:#888;">${it.refLow!=null&&it.refLow!==''?escapeHtml(String(it.refLow))+' - '+escapeHtml(String(it.refHigh)):''}</td>
+          </tr>`;
+        });
+        bodyHtml += `</tbody></table>`;
+      });
+      bodyHtml += `</div>`;
+    });
+  }
+
+  win.document.write(`
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escapeHtml(pet.name||'')} 健康紀錄比較</title>
+    <style>
+      body{font-family:'Helvetica Neue',Arial,sans-serif;color:#2B2B28;padding:32px;max-width:880px;margin:0 auto;}
+      @media print{ button{display:none;} }
+    </style>
+    </head><body>
+    <button onclick="window.print()" style="margin-bottom:20px;padding:10px 18px;background:#3F6B66;color:#fff;border:none;border-radius:8px;cursor:pointer;">列印 / 另存 PDF</button>
+    ${bodyHtml}
+    </body></html>
+  `);
+  win.document.close();
+
+  // 等新視窗載入 Chart.js 後畫圖
+  const chartScript = win.document.createElement('script');
+  chartScript.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js";
+  chartScript.onload = ()=>{
+    selectedExportItems.forEach((name, idx)=>{
+      const { points, refLow, refHigh } = getSeriesForItem(name, vSorted, dSorted);
+      if(!points.length) return;
+      const labels = points.map(p=> fmtDate(p.x));
+      const datasets = [{
+        label: name,
+        data: points.map(p=>p.y),
+        borderColor:'#3F6B66', backgroundColor:'#3F6B66', pointRadius:4, borderWidth:2, tension:0.25
+      }];
+      if(refLow!=null && refHigh!=null){
+        datasets.push({ label:'正常上限', data: points.map(()=>refHigh), borderColor:'rgba(63,107,102,0.3)', borderDash:[4,4], pointRadius:0 });
+        datasets.push({ label:'正常下限', data: points.map(()=>refLow), borderColor:'rgba(63,107,102,0.3)', borderDash:[4,4], pointRadius:0 });
+      }
+      const ctx = win.document.getElementById('exportChart'+idx);
+      new win.Chart(ctx, {
+        type:'line',
+        data:{ labels, datasets },
+        options:{ responsive:false, plugins:{ title:{ display:true, text:name } } }
+      });
+    });
+  };
+  win.document.body.appendChild(chartScript);
 }
 
 /* ============================================================
