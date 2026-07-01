@@ -781,12 +781,21 @@ function renderOverview(pet){
   const left = el('div');
   left.appendChild(el('h1','', pet.name || "未命名"));
   
-  // 生日資訊附加顯示年齡
+  // 生日資訊附加顯示年齡 — 分三行，手機版不會擠在同一行
   const ageStr = pet.birthdate ? `${fmtDate(pet.birthdate)}${getDetailedAge(pet.birthdate)}` : null;
   const latestWeight = getLatestWeight(pet.id);
-  const weightStr = latestWeight ? `目前體重 ${latestWeight.weight} kg(${fmtDate(latestWeight.date)})` : null;
-  const metaParts = [pet.species, pet.breed, pet.sex, pet.birthdate ? ("生日 " + ageStr) : null, weightStr].filter(Boolean);
-  left.appendChild(el('div','meta', metaParts.join(' · ')));
+  const weightStr = latestWeight ? `目前體重 ${latestWeight.weight} kg (${fmtDate(latestWeight.date)})` : null;
+  const line1 = [pet.species, pet.breed, pet.sex].filter(Boolean).join(' · ');
+  const line2 = pet.birthdate ? ('生日 ' + ageStr) : null;
+  const metaEl = el('div','meta');
+  metaEl.style.lineHeight = '1.9';
+  [line1, line2, weightStr].filter(Boolean).forEach(txt => {
+    const span = document.createElement('span');
+    span.style.display = 'block';
+    span.textContent = txt;
+    metaEl.appendChild(span);
+  });
+  left.appendChild(metaEl);
   top.appendChild(left);
 
   const actions = el('div','actions');
@@ -1322,8 +1331,9 @@ function getSeriesForItem(itemName, vSorted, dSorted){
 }
 
 /* ---------- Trends(支援多選同時疊圖比較) ---------- */
-let chartInstance = null;
 const TREND_COLORS = ['#3F6B66','#C1453D','#3D6FC1','#B8860B','#7B5EA7','#1F7A5C'];
+// 趨勢圖改為：多選時每個項目各自一張獨立小圖，避免不同量綱(ml vs kg)疊圖時 Y 軸錯亂
+let chartInstances = [];
 function renderTrends(pet){
   const main = document.getElementById('main');
   main.appendChild(crumb(pet.name, ()=>{activeView='overview'; renderMain();}));
@@ -1338,118 +1348,117 @@ function renderTrends(pet){
     return;
   }
 
-  let selectedItems = [itemNames[0]];
+  let selectedItems = new Set([itemNames[0]]);
 
-  const hint = el('div','', '可複選多個項目同時比較(例如肌酸酐 vs 血尿素氮):');
+  const hint = el('div','', '勾選想要查看的項目，每個項目各自獨立一張圖，Y 軸不互相干擾:');
   hint.style.fontSize = '13px'; hint.style.color = 'var(--ink-soft)'; hint.style.marginBottom = '8px';
   main.appendChild(hint);
 
   const chipBox = el('div','multi-select-box');
   chipBox.style.marginBottom = '18px';
   itemNames.forEach(name=>{
-    const chip = el('div','multi-select-chip'+(selectedItems.includes(name)?' active':''), name);
+    const chip = el('div','multi-select-chip'+(selectedItems.has(name)?' active':''), name);
     chip.addEventListener('click', ()=>{
-      if(selectedItems.includes(name)){
-        if(selectedItems.length > 1) selectedItems = selectedItems.filter(n=>n!==name);
+      if(selectedItems.has(name)){
+        if(selectedItems.size > 1) selectedItems.delete(name);
       } else {
-        if(selectedItems.length >= TREND_COLORS.length){
-          toast(`最多同時比較 ${TREND_COLORS.length} 個項目`);
-          return;
-        }
-        selectedItems.push(name);
+        selectedItems.add(name);
       }
       Array.from(chipBox.children).forEach(c=>{
-        c.classList.toggle('active', selectedItems.includes(c.textContent));
+        c.classList.toggle('active', selectedItems.has(c.textContent));
       });
-      draw();
+      drawAll();
     });
     chipBox.appendChild(chip);
   });
   main.appendChild(chipBox);
 
-  const chartWrap = el('div','chart-wrap');
-  const canvas = document.createElement('canvas');
-  canvas.height = 120;
-  chartWrap.appendChild(canvas);
-  main.appendChild(chartWrap);
+  const chartsHost = el('div','');
+  main.appendChild(chartsHost);
 
-  function draw(){
-    if(chartInstance) chartInstance.destroy();
+  function drawAll(){
+    // 銷毀舊圖
+    chartInstances.forEach(c=>{ try{ c.destroy(); }catch(e){} });
+    chartInstances = [];
+    chartsHost.innerHTML = '';
 
-    // 收集所有選中項目的日期聯集,作為 X 軸 category
-    const allDatesSet = new Set();
-    const seriesData = selectedItems.map(name=>{
+    if(!selectedItems.size) return;
+
+    selectedItems.forEach(name=>{
       const { points, refLow, refHigh } = getSeriesForItem(name, vSorted, dSorted);
-      points.forEach(p=> allDatesSet.add(p.x));
-      return { name, points, refLow, refHigh };
-    });
-    const allDates = Array.from(allDatesSet).sort((a,b)=> new Date(a)-new Date(b));
+      if(!points.length) return;
 
-    if(!allDates.length){
-      toast("目前選擇的項目尚無足夠的數值產生圖表。");
-      return;
-    }
+      const labels = points.map(p => fmtDate(p.x));
+      const color = TREND_COLORS[chartInstances.length % TREND_COLORS.length];
+      const pointColors = points.map(p=>{
+        if(refLow!=null && p.y<refLow) return '#3D6FC1';
+        if(refHigh!=null && p.y>refHigh) return '#C1453D';
+        return color;
+      });
 
-    const labels = allDates.map(d => fmtDate(d));
-
-    const datasets = [];
-    seriesData.forEach((s, idx)=>{
-      const color = TREND_COLORS[idx % TREND_COLORS.length];
-      const valueByDate = {};
-      s.points.forEach(p=> valueByDate[p.x] = p.y);
-      const dataArr = allDates.map(d=> (d in valueByDate) ? valueByDate[d] : null);
-      datasets.push({
-        label: s.name,
-        data: dataArr,
+      const datasets = [{
+        label: name,
+        data: points.map(p=>p.y),
         borderColor: color,
         backgroundColor: color,
+        pointBackgroundColor: pointColors,
         pointRadius: 5,
         tension: 0.25,
         borderWidth: 2,
-        spanGaps: true,
-      });
-      if(s.refLow!=null && s.refHigh!=null && selectedItems.length===1){
+      }];
+      if(refLow!=null && refHigh!=null){
         datasets.push({
-          label: name+'-正常範圍上限', data: allDates.map(()=>s.refHigh),
+          label:'正常範圍上限', data: points.map(()=>refHigh),
           borderColor:'rgba(63,107,102,0.25)', borderDash:[4,4], pointRadius:0, borderWidth:1, fill:'+1'
         });
         datasets.push({
-          label: name+'-正常範圍下限', data: allDates.map(()=>s.refLow),
+          label:'正常範圍下限', data: points.map(()=>refLow),
           borderColor:'rgba(63,107,102,0.25)', borderDash:[4,4], pointRadius:0, borderWidth:1,
           backgroundColor:'rgba(63,107,102,0.08)'
         });
       }
-    });
 
-    chartInstance = new Chart(canvas, {
-      type:'line',
-      data:{ labels, datasets },
-      plugins: [ChartDataLabels],
-      options:{
-        responsive:true,
-        layout:{ padding:{ top:35, left:10, right:10 } },
-        plugins:{
-          legend:{ display: selectedItems.length > 1, labels:{ filter:(item)=> !item.text.includes('範圍') } },
-          datalabels:{
-            align:'top', anchor:'end', offset:4, backgroundColor:null, borderWidth:0,
-            color:'#2B2B28',
-            font:{ weight:'600', family:'IBM Plex Mono, sans-serif', size: selectedItems.length>1 ? 10 : 12 },
-            formatter:(value, context)=>{
-              if(value==null) return null;
-              if(context.dataset.label && context.dataset.label.includes('範圍')) return null;
-              return value;
+      const wrap = el('div','chart-wrap');
+      wrap.style.marginBottom = '18px';
+      const titleEl = el('div','', name);
+      titleEl.style.cssText = 'font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;';
+      wrap.appendChild(titleEl);
+      const canvas = document.createElement('canvas');
+      canvas.height = 110;
+      wrap.appendChild(canvas);
+      chartsHost.appendChild(wrap);
+
+      const inst = new Chart(canvas, {
+        type:'line',
+        data:{ labels, datasets },
+        plugins: [ChartDataLabels],
+        options:{
+          responsive:true,
+          layout:{ padding:{ top:32, left:10, right:10 } },
+          plugins:{
+            legend:{ display:false },
+            datalabels:{
+              align:'top', anchor:'end', offset:4, backgroundColor:null, borderWidth:0,
+              color:'#2B2B28',
+              font:{ weight:'600', family:'IBM Plex Mono, sans-serif', size:12 },
+              formatter:(value, context)=>{
+                if(value==null) return null;
+                if(context.dataset.label && context.dataset.label.includes('範圍')) return null;
+                return value;
+              }
             }
+          },
+          scales:{
+            x:{ type:'category', title:{display:false}, grid:{ display:false } },
+            y:{ title:{display:false}, grace:'15%' }
           }
-        },
-        scales:{
-          x:{ type:'category', title:{display:false}, grid:{ display:false } },
-          y:{ title:{display:false}, grace:'15%' }
         }
-      }
+      });
+      chartInstances.push(inst);
     });
   }
 
-  draw();
+  drawAll();
 }
 
 /* ============================================================
